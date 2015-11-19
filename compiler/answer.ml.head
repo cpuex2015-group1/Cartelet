@@ -1,0 +1,6 @@
+(* ocamlのPervasives.int_of_floatとCPU実験のfloat_spec.pdfに従ったint_of_floatは異なるので再定義する *)
+let int_of_float x =
+  if x>=0.0 then int_of_float (x+.0.5) else int_of_float (x-.0.5) in
+let truncate x = int_of_float x in
+let create_array = Array.create in
+

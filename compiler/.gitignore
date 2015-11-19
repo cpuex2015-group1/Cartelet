@@ -1,0 +1,77 @@
+# Symbolic link to architecture-specific files
+/asm.ml
+/asm.mli
+/debugAsm.ml
+/emit.ml
+/lib
+/libmincaml.S
+/regAlloc.ml
+/simm.ml
+/virtual.ml
+/bytemark/Makefile
+/shootout/Makefile
+
+# OCaml binary
+*.cmi
+*.cmo
+*.cmx
+# OCamlmake
+._bcdi/
+._d/
+
+# Binary and Hex
+*.o
+*.hex
+*.bin
+*.out
+
+# MinCaml Output
+*.cat.ml
+*.cat.s
+
+# Project-specific generated files
+/lexer.ml
+/parser.ml
+/parser.mli
+/min-caml
+/min-caml.top
+
+/min-rt/RayTrace
+/min-rt/raytrace
+/min-rt/globals.s
+/min-rt/min-rt
+/min-rt/min-rt.min-caml
+/min-rt/min-rt.s
+/min-rt/min-rt_b
+/min-rt/ppmdiff
+/min-rt/*.cmp
+/min-rt/*.ppm
+/min-rt/*.sld_
+
+/shootout/*.s
+
+/raytracer/*.ppm
+/raytracer/*.png
+
+/test/*
+!/test/*.ml
+!/test/*.c
+!/test/*.in
+!/test/*.sld
+/error_test/*
+!/error_test/*.ml
+
+# some files for debugging
+/cartelet/lib/test/*
+!/cartelet/lib/test/*.s
+!/cartelet/lib/test/*.c
+!/cartelet/lib/test/*.plt
+!/cartelet/lib/test/*.log
+/carteletV1/lib/test/*
+!/carteletV1/lib/test/*.s
+!/carteletV1/lib/test/*.c
+!/carteletV1/lib/test/*.plt
+!/carteletV1/lib/test/*.log
+
+# Backup files
+*~

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+ln -sf cartelet/{*.ml{,i},libmincaml.S} .
+ln -sf cartelet/lib .
+cd shootout; ln -sf cartelet/Makefile .
+cd ..
