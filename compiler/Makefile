@@ -3,7 +3,7 @@
 # ack.mlなどのテストプログラムをtest/に用意してmake do_testを実行すると、
 # min-camlとocamlでコンパイル・実行した結果を自動で比較します。
 
-ASM = ../asm/asm
+ASM = ../assembler/asm
 SIM = ../simulator/rin
 
 RESULT = min-caml
