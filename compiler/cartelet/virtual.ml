@@ -26,9 +26,9 @@ let expand xts ini addf addi =
     xts
     ini
     (fun (offset, acc) x ->
-      (offset + 4, addf x offset acc))
+      (offset + 1, addf x offset acc))
     (fun (offset, acc) x t ->
-      (offset + 4, addi x t offset acc))
+      (offset + 1, addi x t offset acc))
 
 let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
   | Closure.Unit(p) -> Ans(Nop(p))
@@ -80,15 +80,14 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
       let offset, store_fv =
 	expand
 	  (List.map (fun y -> (y, M.find y env)) ys)
-	  (4, e2')
-	  (fun y offset store_fv -> (assert(offset mod 4 = 0); seq(StF(y, x, C(offset / 4), 4, p), store_fv)))
-	  (fun y _ offset store_fv -> (assert(offset mod 4 = 0); seq(St(y, x, C(offset / 4), 4, p), store_fv))) in
-      assert(offset mod 4 = 0);
+	  (1, e2')
+	  (fun y offset store_fv -> (seq(StF(y, x, C(offset), p), store_fv)))
+	  (fun y _ offset store_fv -> (seq(St(y, x, C(offset), p), store_fv))) in
       Let((x, t), Mov(reg_hp, p),
-	  Let((reg_hp, Type.Int), Add(reg_hp, C(offset / 4), p),
+	  Let((reg_hp, Type.Int), Add(reg_hp, C(offset), p),
 	      let z = Id.genid "l" in
 	      Let((z, Type.Int), SetL(l, p),
-		  seq(St(z, x, C(0), 4, p),
+		  seq(St(z, x, C(0), p),
 		      store_fv))))
   | Closure.AppCls(x, ys, p) ->
       let (int, float) = separate (List.map (fun y -> (y, M.find y env)) ys) in
@@ -102,11 +101,10 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
 	expand
 	  (List.map (fun x -> (x, M.find x env)) xs)
 	  (0, Ans(Mov(y, p)))
-	  (fun x offset store -> (assert(offset mod 4 = 0); seq(StF(x, y, C(offset / 4), 4, p), store)))
-	  (fun x _ offset store -> (assert(offset mod 4 = 0); seq(St(x, y, C(offset / 4), 4, p), store))) in
-      assert(offset mod 4 = 0);
+	  (fun x offset store -> (seq(StF(x, y, C(offset), p), store)))
+	  (fun x _ offset store -> (seq(St(x, y, C(offset), p), store))) in
       Let((y, Type.Tuple(List.map (fun x -> M.find x env) xs)), Mov(reg_hp, p),
-	  Let((reg_hp, Type.Int), Add(reg_hp, C(offset / 4), p),
+	  Let((reg_hp, Type.Int), Add(reg_hp, C(offset), p),
 	      store))
   | Closure.LetTuple(xts, y, e2, p) ->
       let s = Closure.fv e2 in
@@ -116,22 +114,22 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
 	  (0, g (M.add_list xts env) e2)
 	  (fun x offset load ->
 	    if not (S.mem x s) then load else (* [XX] a little ad hoc optimization *)
-	    (assert(offset mod 4 = 0); fletd(x, LdF(y, C(offset / 4), 4, p), load)))
+	    (fletd(x, LdF(y, C(offset), p), load)))
 	  (fun x t offset load ->
 	    if not (S.mem x s) then load else (* [XX] a little ad hoc optimization *)
-	    (assert(offset mod 4 = 0); Let((x, t), Ld(y, C(offset / 4), 4, p), load))) in
+	    (Let((x, t), Ld(y, C(offset), p), load))) in
       load
   | Closure.Get(x, y, p) -> (* 配列の読み出し (caml2html: virtual_get) *)
       (match M.find x env with
       | Type.Array(Type.Unit) -> Ans(Nop(p))
-      | Type.Array(Type.Float) -> Ans(LdF(x, V(y), 4, p))
-      | Type.Array(_) -> Ans(Ld(x, V(y), 4, p))
+      | Type.Array(Type.Float) -> Ans(LdF(x, V(y), p))
+      | Type.Array(_) -> Ans(Ld(x, V(y), p))
       | _ -> assert false)
   | Closure.Put(x, y, z, p) ->
       (match M.find x env with
       | Type.Array(Type.Unit) -> Ans(Nop(p))
-      | Type.Array(Type.Float) -> Ans(StF(z, x, V(y), 4, p))
-      | Type.Array(_) -> Ans(St(z, x, V(y), 4, p))
+      | Type.Array(Type.Float) -> Ans(StF(z, x, V(y), p))
+      | Type.Array(_) -> Ans(St(z, x, V(y), p))
       | _ -> assert false)
   | Closure.ExtArray(Id.L(x), p) -> Ans(SetL(Id.L("min_caml_" ^ x), p))
 
@@ -141,9 +139,9 @@ let h { Closure.name = (Id.L(x), t); Closure.args = yts; Closure.formal_fv = zts
   let (offset, load) =
     expand
       zts
-      (4, g (M.add x t (M.add_list yts (M.add_list zts M.empty))) e)
-      (fun z offset load -> (assert(offset mod 4 = 0); fletd(z, LdF(reg_cl, C(offset / 4), 4, Lexing.dummy_pos), load)))
-      (fun z t offset load -> (assert(offset mod 4 = 0); Let((z, t), Ld(reg_cl, C(offset / 4), 4, Lexing.dummy_pos), load))) in
+      (1, g (M.add x t (M.add_list yts (M.add_list zts M.empty))) e)
+      (fun z offset load -> (fletd(z, LdF(reg_cl, C(offset), Lexing.dummy_pos), load)))
+      (fun z t offset load -> (Let((z, t), Ld(reg_cl, C(offset), Lexing.dummy_pos), load))) in
   match t with
   | Type.Fun(_, t2) ->
       { name = Id.L(x); args = int; fargs = float; body = load; ret = t2 }

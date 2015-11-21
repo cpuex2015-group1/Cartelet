@@ -1,4 +1,4 @@
-(* 2オペランドではなく3オペランドのx86アセンブリもどき *)
+(* Cartelet (2nd) *)
 
 type id_or_imm = V of Id.t | C of int
 type t = (* 命令の列 (caml2html: sparcasm_t) *)
@@ -14,23 +14,31 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | Sub of Id.t * id_or_imm * Lexing.position
   | Mul of Id.t * id_or_imm * Lexing.position
   | Div of Id.t * id_or_imm * Lexing.position
-  | Ld of Id.t * id_or_imm * int * Lexing.position
-  | St of Id.t * Id.t * id_or_imm * int * Lexing.position
+  | Slli of Id.t * int * Lexing.position
+  | Srai of Id.t * int * Lexing.position
+  | Ld of Id.t * id_or_imm * Lexing.position
+  | St of Id.t * Id.t * id_or_imm * Lexing.position
   | FMov of Id.t * Lexing.position
   | FNeg of Id.t * Lexing.position
   | FAdd of Id.t * Id.t * Lexing.position
   | FSub of Id.t * Id.t * Lexing.position
   | FMul of Id.t * Id.t * Lexing.position
   | FDiv of Id.t * Id.t * Lexing.position
-  | LdF of Id.t * id_or_imm * int * Lexing.position
-  | StF of Id.t * Id.t * id_or_imm * int * Lexing.position
+  | FInv of Id.t * Lexing.position
+  | FSqrt of Id.t * Lexing.position
+  | FAbs of Id.t * Lexing.position
+  | LdF of Id.t * id_or_imm * Lexing.position
+  | StF of Id.t * Id.t * id_or_imm * Lexing.position
+  | Send of Id.t * Lexing.position
+  | Recv of Id.t * Lexing.position
   | Comment of string * Lexing.position
   (* virtual instructions *)
   | IfEq of Id.t * id_or_imm * t * t * Lexing.position
   | IfLE of Id.t * id_or_imm * t * t * Lexing.position
-  | IfGE of Id.t * id_or_imm * t * t  * Lexing.position(* 左右対称ではないので必要 *)
+  | IfLt of Id.t * id_or_imm * t * t  * Lexing.position
   | IfFEq of Id.t * Id.t * t * t * Lexing.position
   | IfFLE of Id.t * Id.t * t * t * Lexing.position
+  | IfFLt of Id.t * Id.t * t * t * Lexing.position
   (* closure address, integer arguments, and float arguments *)
   | CallCls of Id.t * Id.t list * Id.t list * Lexing.position
   | CallDir of Id.l * Id.t list * Id.t list * Lexing.position
@@ -43,27 +51,28 @@ type prog = Prog of (Id.l * float) list * fundef list * t
 let fletd(x, e1, e2) = Let((x, Type.Float), e1, e2)
 let seq(e1, e2) = Let((Id.gentmp Type.Unit, Type.Unit), e1, e2)
 
-let regs_result    = Array.init 2 (fun i -> Printf.sprintf "%%r%d" (i+2))
-let regs_arg       = Array.init 4 (fun i -> Printf.sprintf "%%r%d" (i+4))
-let regs_saved_tmp = Array.init 8 (fun i -> Printf.sprintf "%%r%d" (i+16))
-let regs_tmp       = Array.init 9 (fun i -> Printf.sprintf "%%r%d" (i+8)) (* r24はswapのため、r25はreg_tmpのために残す *)
-let regs = Array.append (Array.append regs_result regs_arg) regs_tmp
-let fregs = Array.init 31 (fun i -> Printf.sprintf "%%f%d" i) (* f31はreg_ftmpのために残す *)
+let regs_tmp       = Array.init 15 (fun i -> Printf.sprintf "%%r%d" (i+2))
+let regs_saved_tmp = Array.init 10 (fun i -> Printf.sprintf "%%r%d" (i+17))
+let regs = regs_tmp
+let fregs_tmp       = Array.append
+			(Array.init 15 (fun i -> Printf.sprintf "%%f%d" (i+ 2)))
+			(Array.init  4 (fun i -> Printf.sprintf "%%f%d" (i+28)))
+let fregs_saved_tmp = Array.init 10 (fun i -> Printf.sprintf "%%f%d" (i+17))
+let fregs = fregs_tmp
 let allregs = Array.to_list regs
 let allfregs = Array.to_list fregs
-let reg_cl = regs.(Array.length regs - 1) (* closure address (caml2html: sparcasm_regcl) *)
+let reg_cl = regs.(Array.length regs - 1)  (* closure address *)
 
-let reg_sw = "%r24" (* temporary for swap *)
-let reg_fsw = fregs.(Array.length fregs - 1) (* temporary for swap *)
+let  reg_sw   = "%r27"  (* temporary registor for swap *)
+let freg_sw   = "%f27"
+let  reg_zero = "%r0"
+let freg_zero = "%f0"
+let  reg_rv   = "%r2"  (* return value *)
+let freg_rv   = "%f2"
 
-let reg_zero = "%r0" (* zero register *)
-let reg_rv = "%r2"  (* return value 1 *)
-let reg_frv = "%f0"
-let reg_tmp = "%r25"
-let reg_ftmp = "%f31"
-let reg_hp = "%r28" (* heap pointer (caml2html: sparcasm_reghp) *) (* MIPS的にはgrobal pointer *)
-let reg_sp = "%r29" (* stack pointer *)
-let reg_ra = "%r31" (* return address *)
+let reg_hp = "%r28"  (* heap pointer *)
+let reg_sp = "%r29"  (* stack pointer *)
+let reg_ra = "%r31"  (* return address *)
 let is_reg x = (x.[0] = '%')
 
 (* super-tenuki *)
@@ -76,12 +85,12 @@ let rec remove_and_uniq xs = function
 let fv_id_or_imm = function V(x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop _ | Set _ | SetL _ | Comment _ | Restore _ -> []
-  | Mov(x, _) | Neg(x, _) | FMov(x, _) | FNeg(x, _) | Save(x, _, _) -> [x]
-  | Add(x, y', _) | Sub(x, y', _) | Mul(x, y', _) | Div(x, y', _) | Ld(x, y', _, _) | LdF(x, y', _, _) -> x :: fv_id_or_imm y'
-  | St(x, y, z', _, _) | StF(x, y, z', _, _) -> x :: y :: fv_id_or_imm z'
+  | Mov(x, _) | Neg(x, _) | Slli(x, _, _) | Srai(x, _, _) | FMov(x, _) | FNeg(x, _) | FInv(x, _) | FSqrt(x, _) | FAbs(x, _) | Save(x, _, _) | Send(x, _) | Recv(x, _) -> [x]
+  | Add(x, y', _) | Sub(x, y', _) | Mul(x, y', _) | Div(x, y', _) | Ld(x, y', _) | LdF(x, y', _) -> x :: fv_id_or_imm y'
+  | St(x, y, z', _) | StF(x, y, z', _) -> x :: y :: fv_id_or_imm z'
   | FAdd(x, y, _) | FSub(x, y, _) | FMul(x, y, _) | FDiv(x, y, _) -> [x; y]
-  | IfEq(x, y', e1, e2, _) | IfLE(x, y', e1, e2, _) | IfGE(x, y', e1, e2, _) -> x :: fv_id_or_imm y' @ remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
-  | IfFEq(x, y, e1, e2, _) | IfFLE(x, y, e1, e2, _) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
+  | IfEq(x, y', e1, e2, _) | IfLE(x, y', e1, e2, _) | IfLt(x, y', e1, e2, _) -> x :: fv_id_or_imm y' @ remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
+  | IfFEq(x, y, e1, e2, _) | IfFLE(x, y, e1, e2, _) | IfFLt(x, y, e1, e2, _) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | CallCls(x, ys, zs, _) -> x :: ys @ zs
   | CallDir(_, ys, zs, _) -> ys @ zs
 and fv = function
@@ -101,11 +110,12 @@ let pos_of_exp = function (* Asm.expからLexing.positionを抜き出す *)
     Nop(p)
   | Set(_, p) | SetL(_, p) | Mov(_, p)
   | Neg(_, p) | Add(_, _, p) | Sub(_, _, p) | Mul(_, _, p) | Div(_, _, p)
-  | Ld(_, _, _, p) | St(_, _, _, _, p)
-  | FMov(_, p) | FNeg(_, p) | FAdd(_, _, p) | FSub(_, _, p) | FMul(_, _, p) | FDiv(_, _, p)
-  | LdF(_, _, _, p) | StF(_, _, _, _, p)
+  | Slli(_, _, p) | Srai(_, _, p)
+  | Ld(_, _, p) | St(_, _, _, p)
+  | FMov(_, p) | FNeg(_, p) | FAdd(_, _, p) | FSub(_, _, p) | FMul(_, _, p) | FDiv(_, _, p) | FInv(_, p) | FSqrt(_, p) | FAbs(_, p)
+  | LdF(_, _, p) | StF(_, _, _, p)
   | Comment (_, p)
-  | IfEq(_, _, _, _, p) | IfLE(_, _, _, _, p) | IfGE(_, _, _, _, p)
-  | IfFEq(_, _, _, _, p) | IfFLE(_, _, _, _, p)
+  | IfEq(_, _, _, _, p) | IfLE(_, _, _, _, p) | IfLt(_, _, _, _, p)
+  | IfFEq(_, _, _, _, p) | IfFLE(_, _, _, _, p) | IfFLt(_, _, _, _, p)
   | CallCls(_, _, _, p) | CallDir(_, _, _, p)
   | Save(_, _, p) | Restore(_, p) -> p
