@@ -35,10 +35,9 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   (* virtual instructions *)
   | IfEq of Id.t * id_or_imm * t * t * Lexing.position
   | IfLE of Id.t * id_or_imm * t * t * Lexing.position
-  | IfLt of Id.t * id_or_imm * t * t  * Lexing.position
+  | IfGE of Id.t * id_or_imm * t * t  * Lexing.position
   | IfFEq of Id.t * Id.t * t * t * Lexing.position
   | IfFLE of Id.t * Id.t * t * t * Lexing.position
-  | IfFLt of Id.t * Id.t * t * t * Lexing.position
   (* closure address, integer arguments, and float arguments *)
   | CallCls of Id.t * Id.t list * Id.t list * Lexing.position
   | CallDir of Id.l * Id.t list * Id.t list * Lexing.position
@@ -89,7 +88,7 @@ let rec fv_exp = function
   | Add(x, y', _) | Sub(x, y', _) | Mul(x, y', _) | Div(x, y', _) | Ld(x, y', _) | LdF(x, y', _) -> x :: fv_id_or_imm y'
   | St(x, y, z', _) | StF(x, y, z', _) -> x :: y :: fv_id_or_imm z'
   | FAdd(x, y, _) | FSub(x, y, _) | FMul(x, y, _) | FDiv(x, y, _) -> [x; y]
-  | IfEq(x, y', e1, e2, _) | IfLE(x, y', e1, e2, _) | IfLt(x, y', e1, e2, _) -> x :: fv_id_or_imm y' @ remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
+  | IfEq(x, y', e1, e2, _) | IfLE(x, y', e1, e2, _) | IfGE(x, y', e1, e2, _) -> x :: fv_id_or_imm y' @ remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | IfFEq(x, y, e1, e2, _) | IfFLE(x, y, e1, e2, _) | IfFLt(x, y, e1, e2, _) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | CallCls(x, ys, zs, _) -> x :: ys @ zs
   | CallDir(_, ys, zs, _) -> ys @ zs
@@ -115,7 +114,7 @@ let pos_of_exp = function (* Asm.expからLexing.positionを抜き出す *)
   | FMov(_, p) | FNeg(_, p) | FAdd(_, _, p) | FSub(_, _, p) | FMul(_, _, p) | FDiv(_, _, p) | FInv(_, p) | FSqrt(_, p) | FAbs(_, p)
   | LdF(_, _, p) | StF(_, _, _, p)
   | Comment (_, p)
-  | IfEq(_, _, _, _, p) | IfLE(_, _, _, _, p) | IfLt(_, _, _, _, p)
+  | IfEq(_, _, _, _, p) | IfLE(_, _, _, _, p) | IfGE(_, _, _, _, p)
   | IfFEq(_, _, _, _, p) | IfFLE(_, _, _, _, p) | IfFLt(_, _, _, _, p)
   | CallCls(_, _, _, p) | CallDir(_, _, _, p)
   | Save(_, _, p) | Restore(_, p) -> p
