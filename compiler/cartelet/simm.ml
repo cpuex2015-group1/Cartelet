@@ -21,7 +21,7 @@ and g' env = function (* 各命令の即値最適化 (caml2html: simm13_gprime) *)
      if cx = 4 then Slli(y, 2, p) else failwith "multiply is supported only by 4"
   | Div(x, V(y), p) when M.mem y env ->
      let cy = M.find y env in
-     if cy = 2 then Slli(x, -1, p) else failwith "division is supported only by 2"
+     if cy = 2 then Srai(x, 1, p) else failwith "division is supported only by 2"
   | IfEq(x, V(y), e1, e2, p) when M.mem y env -> IfEq(x, C(M.find y env), g env e1, g env e2, p)
   | IfLE(x, V(y), e1, e2, p) when M.mem y env -> IfLE(x, C(M.find y env), g env e1, g env e2, p)
   | IfGE(x, V(y), e1, e2, p) when M.mem y env -> IfGE(x, C(M.find y env), g env e1, g env e2, p)
