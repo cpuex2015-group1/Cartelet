@@ -29,7 +29,7 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | FAbs of Id.t * Lexing.position
   | LdF of Id.t * id_or_imm * Lexing.position
   | StF of Id.t * Id.t * id_or_imm * Lexing.position
-  | Send of Id.t * Lexing.position
+  | Send of Id.t * Lexing.position (* id_or_immにしてもいいかも? *)
   | Recv of Id.t * Lexing.position
   | Comment of string * Lexing.position
   (* virtual instructions *)

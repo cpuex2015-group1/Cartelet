@@ -42,11 +42,22 @@ let rec source t = function
   | Ans(exp) -> source' t exp
   | Let(_, _, e) -> source t e
 and source' t = function
-  | Mov(x, _) | Neg(x, _) | Add(x, C _, _) | Sub(x, _, _) | Mul(x, C _, _) | Div(x, _, _) | FMov(x, _) | FNeg(x, _) | FSub(x, _, _) | FDiv(x, _, _) -> [x]
-  | Add(x, V y, _) | Mul(x, V y, _) | FAdd(x, y, _) | FMul(x, y, _) -> [x; y] (* Mul(x, V y, _) は無いはず *)
-  | IfEq(_, _, e1, e2, _) | IfLE(_, _, e1, e2, _) | IfGE(_, _, e1, e2, _) | IfFEq(_, _, e1, e2, _) | IfFLE(_, _, e1, e2, _) ->
+  | Mov(x, _) | Neg(x, _)
+  | Add(x, C _, _) | Sub(x, _, _) | Mul(x, C _, _) | Div(x, _, _)
+  | Slli(x, _, _) | Srai(x, _, _)
+  | FMov(x, _) | FNeg(x, _) | FSub(x, _, _) | FDiv(x, _, _)
+  | FInv(x, _) | FSqrt(x, _) | FAbs(x, _) |
+  | Send(x, _) -> [x]
+  | Add(x, V y, _) | Mul(x, V y, _) -> [x; y]
+  | FAdd(x, y, _) | FMul(x, y, _) -> assert false
+  | IfEq(_, _, e1, e2, _) | IfLE(_, _, e1, e2, _) | IfGE(_, _, e1, e2, _)
+  | IfFEq(_, _, e1, e2, _) | IfFLE(_, _, e1, e2, _) ->
       source t e1 @ source t e2
-  | CallCls _ | CallDir _ -> (match t with Type.Unit -> [] | Type.Float -> [reg_frv] | _ -> [reg_rv])
+  | CallCls _ | CallDir _ ->
+      (match t with
+	 Type.Unit -> []
+       | Type.Float -> [reg_frv]
+       | _ -> [reg_rv])
   | _ -> []
 
 type alloc_result = (* allocにおいてspillingがあったかどうかを表すデータ型 *)
@@ -141,6 +152,8 @@ and g' dest cont regenv = function (* 各命令のレジスタ割り当て (caml2html: regal
   | Sub(x, y', p) -> (Ans(Sub(find x Type.Int regenv, find' y' regenv, p)), regenv)
   | Mul(x, y', p) -> (Ans(Mul(find x Type.Int regenv, find' y' regenv, p)), regenv)
   | Div(x, y', p) -> (Ans(Div(find x Type.Int regenv, find' y' regenv, p)), regenv)
+  | Slli(x, i, p) -> (Ans(Slli(find x Type.int regenv, i, p)), regenv)
+  | Srai(x, i, p) -> (Ans(Srai(find x Type.int regenv, i, p)), regenv)
   | Ld(x, y', i, p) -> (Ans(Ld(find x Type.Int regenv, find' y' regenv, i, p)), regenv)
   | St(x, y, z', i, p) -> (Ans(St(find x Type.Int regenv, find y Type.Int regenv, find' z' regenv, i, p)), regenv)
   | FMov(x, p) -> (Ans(FMov(find x Type.Float regenv, p)), regenv)
@@ -149,8 +162,13 @@ and g' dest cont regenv = function (* 各命令のレジスタ割り当て (caml2html: regal
   | FSub(x, y, p) -> (Ans(FSub(find x Type.Float regenv, find y Type.Float regenv, p)), regenv)
   | FMul(x, y, p) -> (Ans(FMul(find x Type.Float regenv, find y Type.Float regenv, p)), regenv)
   | FDiv(x, y, p) -> (Ans(FDiv(find x Type.Float regenv, find y Type.Float regenv, p)), regenv)
+  | FInv(x, p) -> (Ans(FInv(find x Type.Float regenv, p)), regenv)
+  | FSqrt(x, p) -> (Ans(FSqrt(find x Type.Float regenv, p)) regenv)
+  | FAbs(x, p) -> (Ans(FAbs(find x Type.Float regenv p)), regenv)
   | LdF(x, y', i, p) -> (Ans(LdF(find x Type.Int regenv, find' y' regenv, i, p)), regenv)
   | StF(x, y, z', i, p) -> (Ans(StF(find x Type.Float regenv, find y Type.Int regenv, find' z' regenv, i, p)), regenv)
+  | Send(x, p) -> (Ans(Send(find x Type.Int regenv, p)), regenv)
+  | Recv(x, p) -> (Ans(Recv(find x Type.Int regenv, p)), regenv)
   | IfEq(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfEq(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
   | IfLE(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfLE(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
   | IfGE(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfGE(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
