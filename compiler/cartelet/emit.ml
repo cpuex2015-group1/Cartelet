@@ -119,7 +119,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), Srai(y, i, p) ->
      assert(is_signed_16bit i);
      emit_3 oc "srai" x y (string_of_int i) p
-  | NonTail(x), Ld(y, V(z), i, p) ->
+  | NonTail(x), Ld(y, V(z), p) ->
      emit_3 oc "add" reg_tmp y z p;
      emit_ld oc "lw" x 0 reg_tmp p
   | NonTail(x), Ld(y, C(i), p) ->
@@ -132,7 +132,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      assert(is_signed_16bit i);
      emit_st oc "sw" i y x p
   | NonTail(x), FMov(y, p) ->
-     if x <> y then emit_2 "fmov" x y p
+     if x <> y then emit_2 oc "fmov" x y p
   | NonTail(x), FNeg(y, p) ->
      emit_2 oc "fneg" x y p
   | NonTail(x), FAdd(y, z, p) ->
@@ -152,11 +152,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), FAbs(y, p) ->
      emit_2 oc "fabs" x y p
   | NonTail(x), LdF(y, V(z), p) ->
-     emit_3 "add" reg_tmp y z p;
-     emit_ld "flw" x 0 reg_tmp p
+     emit_3 oc "add" reg_tmp y z p;
+     emit_ld oc "flw" x 0 reg_tmp p
   | NonTail(x), LdF(y, C(i), p) ->
      assert(is_signed_16bit i);
-     emit_ld "flw" x i y p
+     emit_ld oc "flw" x i y p
   | NonTail(_), StF(x, y, V(z), p) ->
      emit_3 oc "add" reg_tmp y z p;
      emit_st oc "fsw" 0 reg_tmp x p
@@ -172,10 +172,10 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      line oc p
   (* 退避の仮想命令の実装 (caml2html: emit_save) *)
   | NonTail(_), Save(x, y, p) when List.mem x allregs && not (S.mem y !stackset) ->
-      save y;
-      let offset_y = -(offset y) in
-      assert(is_signed_16bit offset_y;
-      emit_st oc "sw" offset_y reg_sp x p
+     save y;
+     let offset_y = -(offset y) in
+     assert(is_signed_16bit offset_y);
+     emit_st oc "sw" offset_y reg_sp x p
   | NonTail(_), Save(x, y, p) when List.mem x allfregs && not (S.mem y !stackset) ->
      savef y;
      let offset_y = -(offset y) in
@@ -191,30 +191,30 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      assert (List.mem x allfregs);
      let offset_y = -(offset y) in
      assert(is_signed_16bit offset_y);
-     emit_ld oc "flw" x offset_y reg_sp
+     emit_ld oc "flw" x offset_y reg_sp p
   (* 末尾だったら計算結果を第一レジスタにセットしてret (caml2html: emit_tailret) *)
   | Tail, (Nop _ | St _ | StF _ | Send _ | Recv _ | Comment _ | Save _ as exp) ->
      let p = Asm.pos_of_exp exp in
      g' oc (NonTail(Id.gentmp Type.Unit), exp);
-     emit_1 "jr" reg_ra p
+     emit_1 oc "jr" reg_ra p
   | Tail, (Set _ | SetL _ | Mov _ |
 	   Neg _ | Add _ | Sub _ | Mul _ | Div _ | Slli _ | Srai _ |
 	   Ld _ as exp) ->
      let p = Asm.pos_of_exp exp in
      g' oc (NonTail(reg_rv), exp);
-     emit_1 "jr" reg_ra p
+     emit_1 oc "jr" reg_ra p
   | Tail, (FMov _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ |
 	   FInv _ | FSqrt _ | FAbs _ | LdF _  as exp) ->
      let p = Asm.pos_of_exp exp in
-     g' oc (NonTail(reg_frv), exp);
-     emit_1 "jr" reg_ra p
+     g' oc (NonTail(freg_rv), exp);
+     emit_1 oc "jr" reg_ra p
   | Tail, (Restore(x, p) as exp) ->
      (if x.[1] = 'r' then
 	g' oc (NonTail(reg_rv), exp)
       else
 	(assert(x.[1] = 'f');
-	 g' oc (NonTail(reg_frv), exp)));
-     emit_1 "jr" reg_ra p
+	 g' oc (NonTail(freg_rv), exp)));
+     emit_1 oc "jr" reg_ra p
 (* 後で分岐予測のこと考える *)
   | Tail, IfEq(x, V(y), e1, e2, p) ->
      g'_tail_if oc e1 e2 "beq" x y p
@@ -258,7 +258,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" x reg_tmp p;
   | NonTail(z), IfGE(x, V(y), e1, e2, p) ->
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" y x p
-  | NonTail(z), IfGE(x, C(y), e1, e2, p) ->
+  | NonTail(z), IfGE(x, C(i), e1, e2, p) ->
      assert(is_signed_16bit i);
      emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" reg_tmp x p;
@@ -283,23 +283,23 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
 	 g' oc (Tail, CallDir(Id.L("min_caml_read_float_byte"), ys, zs, p))
       | _ ->
 	 (g'_args oc [] ys zs p;
-	  emit_3 oc "beq" reg_zero reg_zero x p)
+	  emit_3 oc "beq" reg_zero reg_zero x p))
   | NonTail(a), CallCls(x, ys, zs, p) ->
      g'_args oc [(x, reg_cl)] ys zs p;
      let ss = stacksize () in
      assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
-     emit_3 oc "addi" reg_sp reg_sp (-(ss+1)) p;
+     emit_3 oc "addi" reg_sp reg_sp (string_of_int (-(ss+1))) p;
      emit_st oc "sw" 0 reg_sp reg_ra p;
      emit_ld oc "lw" reg_tmp 0 reg_cl p;
-     emit_1 oc "jalr" reg_sw p;
+     emit_1 oc "jalr" reg_tmp p;
      emit_ld oc "lw" reg_ra 0 reg_sp p;
-     emit_3 oc "addi" reg_sp reg_sp (ss+1) p;
+     emit_3 oc "addi" reg_sp reg_sp (string_of_int (ss+1)) p;
      if List.mem a allregs && a <> reg_rv then
        emit_3 oc "addi" a reg_rv "0" p
      else if List.mem a allfregs && a <> freg_rv then
        emit_2 oc "fmov" a freg_rv p
      else
-       assert (a = reg_rv || a = reg_frv)
+       assert (a = reg_rv || a = freg_rv)
   | NonTail(a), CallDir(Id.L(x), ys, zs, p) ->
      (match x with
       | "min_caml_fabs" | "min_caml_abs_float" ->
@@ -314,17 +314,17 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
 	 (g'_args oc [] ys zs p;
 	  let ss = stacksize () in
 	  assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
-	  emit_3 oc "addi" reg_sp reg_sp (-(ss+1)) p;
+	  emit_3 oc "addi" reg_sp reg_sp (string_of_int (-(ss+1))) p;
 	  emit_st oc "sw" 0 reg_sp reg_ra p;
 	  emit_1 oc "jal" x p;
 	  emit_ld oc "lw" reg_ra 0 reg_sp p;
-	  emit_3 oc "addi" reg_sp reg_sp (ss+1) p;
+	  emit_3 oc "addi" reg_sp reg_sp (string_of_int (ss+1)) p;
 	  if List.mem a allregs && a <> reg_rv then
 	    emit_3 oc "addi" a reg_rv "0" p
 	  else if List.mem a allfregs && a <> freg_rv then
 	    emit_2 oc "fmov" a freg_rv p
 	  else
-	    assert(a = reg_rv || a = freg_rv)
+	    assert(a = reg_rv || a = freg_rv)))
 and g'_tail_if oc e1 e2 b reg1 reg2 p =
   let b_true = Id.genid b in
   emit_3 oc b reg1 reg2 b_true p;
@@ -336,7 +336,7 @@ and g'_tail_if oc e1 e2 b reg1 reg2 p =
 and g'_non_tail_if oc dest e1 e2 b reg1 reg2 p =
   let b_true = Id.genid (b ^ "_true") in
   let b_cont = Id.genid (b ^ "_cont") in
-  emit_3 oc b reg1 reg2 b_true;
+  emit_3 oc b reg1 reg2 b_true p;
   let stackset_back = !stackset in
   g oc (dest, e2);
   let stackset1 = !stackset in
@@ -356,7 +356,7 @@ and g'_args oc x_reg_cl ys zs p =
       (0, x_reg_cl)
       ys in
   List.iter
-    (fun (y, r) -> emit_3 oc "addi" r y "0" p))
+    (fun (y, r) -> emit_3 oc "addi" r y "0" p)
     (shuffle reg_tmp yrs);
   let (d, zfrs) =
     List.fold_left
@@ -366,7 +366,7 @@ and g'_args oc x_reg_cl ys zs p =
   List.iter
     (fun (z, fr) -> emit_2 oc "fmov" fr z p)
     (shuffle freg_tmp zfrs)
-
+    
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   Printf.fprintf oc "%s:\n" x;
   stackset := S.empty;
@@ -386,7 +386,7 @@ let emit_data oc data =
     (fun (x, f) ->
       Printf.fprintf oc "%s:\n" x;
       Printf.fprintf oc "\t.long\t%s\n" f)
-    data;
+    data
 
 let f oc (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
@@ -401,13 +401,14 @@ let f oc (Prog(data, fundefs, e)) =
 	     ("min_caml_float_1",       "0x3f800000");
 	     ("min_caml_float_2",       "0x40000000");
 	     ("min_caml_float_minus_1", "0xbf800000");
-	     ("min_caml_float_half",    "0x3f000000")]
+	     ("min_caml_float_half",    "0x3f000000")];
   (if mem ["read_int"; "read_float"; "read_int_byte"; "read_float_byte"] then
      emit_data oc [("min_caml_read_float_c1", "0x3dcccccd")]);
-  (if mem ["int_of_float"; "truncate"; "float_of_int"; "read_int"; "read_float"] then
+  (if mem ["int_of_float"; "truncate";
+	   "float_of_int"; "read_int"; "read_float"] then
      emit_data oc
-	       [("min_caml_float_int_c1", "0xcb000000"); (* (float)(-838860) *)
-		("min_caml_float_int_c2", "0x4b000000")] (* (float)(838860) *));
+	       [("min_caml_float_int_c1", "0xcb000000");
+		("min_caml_float_int_c2", "0x4b000000")]);
   (if mem ["cos"; "sin"] then
      emit_data oc
 	       [("min_caml_kernel_cos_c1", "0xbf000000");
