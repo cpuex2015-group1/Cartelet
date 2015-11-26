@@ -42,12 +42,12 @@ let rec source t = function
   | Ans(exp) -> source' t exp
   | Let(_, _, e) -> source t e
 and source' t = function
-  | Mov(x, _) | Neg(x, _)
-  | Add(x, C _, _) | Sub(x, _, _) | Mul(x, C _, _) | Div(x, _, _)
-  | Slli(x, _, _) | Srai(x, _, _)
-  | FMov(x, _) | FNeg(x, _) | FSub(x, _, _) | FDiv(x, _, _)
-  | FInv(x, _) | FSqrt(x, _) | FAbs(x, _) |
-  | Send(x, _) -> [x]
+  | Mov(x, _) | Neg(x, _) |
+    Add(x, C _, _) | Sub(x, _, _) | Mul(x, C _, _) | Div(x, _, _) |
+    Slli(x, _, _) | Srai(x, _, _) |
+    FMov(x, _) | FNeg(x, _) | FSub(x, _, _) | FDiv(x, _, _) |
+    FInv(x, _) | FSqrt(x, _) | FAbs(x, _) |
+    Send(x, _) -> [x]
   | Add(x, V y, _) | Mul(x, V y, _) -> [x; y]
   | FAdd(x, y, _) | FMul(x, y, _) -> assert false
   | IfEq(_, _, e1, e2, _) | IfLE(_, _, e1, e2, _) | IfGE(_, _, e1, e2, _)
@@ -56,7 +56,7 @@ and source' t = function
   | CallCls _ | CallDir _ ->
       (match t with
 	 Type.Unit -> []
-       | Type.Float -> [reg_frv]
+       | Type.Float -> [freg_rv]
        | _ -> [reg_rv])
   | _ -> []
 
@@ -152,10 +152,10 @@ and g' dest cont regenv = function (* 各命令のレジスタ割り当て (caml2html: regal
   | Sub(x, y', p) -> (Ans(Sub(find x Type.Int regenv, find' y' regenv, p)), regenv)
   | Mul(x, y', p) -> (Ans(Mul(find x Type.Int regenv, find' y' regenv, p)), regenv)
   | Div(x, y', p) -> (Ans(Div(find x Type.Int regenv, find' y' regenv, p)), regenv)
-  | Slli(x, i, p) -> (Ans(Slli(find x Type.int regenv, i, p)), regenv)
-  | Srai(x, i, p) -> (Ans(Srai(find x Type.int regenv, i, p)), regenv)
-  | Ld(x, y', i, p) -> (Ans(Ld(find x Type.Int regenv, find' y' regenv, i, p)), regenv)
-  | St(x, y, z', i, p) -> (Ans(St(find x Type.Int regenv, find y Type.Int regenv, find' z' regenv, i, p)), regenv)
+  | Slli(x, i, p) -> (Ans(Slli(find x Type.Int regenv, i, p)), regenv)
+  | Srai(x, i, p) -> (Ans(Srai(find x Type.Int regenv, i, p)), regenv)
+  | Ld(x, y', p) -> (Ans(Ld(find x Type.Int regenv, find' y' regenv, p)), regenv)
+  | St(x, y, z', p) -> (Ans(St(find x Type.Int regenv, find y Type.Int regenv, find' z' regenv, p)), regenv)
   | FMov(x, p) -> (Ans(FMov(find x Type.Float regenv, p)), regenv)
   | FNeg(x, p) -> (Ans(FNeg(find x Type.Float regenv, p)), regenv)
   | FAdd(x, y, p) -> (Ans(FAdd(find x Type.Float regenv, find y Type.Float regenv, p)), regenv)
@@ -163,10 +163,10 @@ and g' dest cont regenv = function (* 各命令のレジスタ割り当て (caml2html: regal
   | FMul(x, y, p) -> (Ans(FMul(find x Type.Float regenv, find y Type.Float regenv, p)), regenv)
   | FDiv(x, y, p) -> (Ans(FDiv(find x Type.Float regenv, find y Type.Float regenv, p)), regenv)
   | FInv(x, p) -> (Ans(FInv(find x Type.Float regenv, p)), regenv)
-  | FSqrt(x, p) -> (Ans(FSqrt(find x Type.Float regenv, p)) regenv)
-  | FAbs(x, p) -> (Ans(FAbs(find x Type.Float regenv p)), regenv)
-  | LdF(x, y', i, p) -> (Ans(LdF(find x Type.Int regenv, find' y' regenv, i, p)), regenv)
-  | StF(x, y, z', i, p) -> (Ans(StF(find x Type.Float regenv, find y Type.Int regenv, find' z' regenv, i, p)), regenv)
+  | FSqrt(x, p) -> (Ans(FSqrt(find x Type.Float regenv, p)), regenv)
+  | FAbs(x, p) -> (Ans(FAbs(find x Type.Float regenv, p)), regenv)
+  | LdF(x, y', p) -> (Ans(LdF(find x Type.Int regenv, find' y' regenv, p)), regenv)
+  | StF(x, y, z', p) -> (Ans(StF(find x Type.Float regenv, find y Type.Int regenv, find' z' regenv, p)), regenv)
   | Send(x, p) -> (Ans(Send(find x Type.Int regenv, p)), regenv)
   | IfEq(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfEq(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
   | IfLE(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfLE(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
@@ -234,7 +234,7 @@ let h { name = Id.L(x); args = ys; fargs = zs; body = e; ret = t } = (* 関数のレ
   let a =
     match t with
     | Type.Unit -> Id.gentmp Type.Unit
-    | Type.Float -> reg_frv
+    | Type.Float -> freg_rv
     | _ -> reg_rv in
   let (e', regenv') = g (a, t) (Ans(Mov(a, Lexing.dummy_pos))) regenv e in
   { name = Id.L(x); args = arg_regs; fargs = farg_regs; body = e'; ret = t }
