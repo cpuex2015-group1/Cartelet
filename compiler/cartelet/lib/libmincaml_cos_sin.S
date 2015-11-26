@@ -5,14 +5,14 @@ min_caml_cos:
 	# f2: x, f3: pi, f5: pi/2, f6: temp
 	fabs	%f2 %f2
 	addi	%r29 %r29 $-1
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_reduction_2pi
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $1
 	addi	%r8 %r0 $0
 	# x >= piならx := x - pi, FLAG reverse
 	addi	%r9 %r0 min_caml_pi
-	fld	%f3 0(%r9)
+	flw	%f3 0(%r9)
 	fblt	%f2 %f3 min_caml_cos_2
 	fneg	%f6 %f3
 	fadd	%f2 %f2 %f6
@@ -24,7 +24,7 @@ min_caml_cos_1_0:
 min_caml_cos_2:
 	# x >= pi/2ならx := pi - x, FLAG reverse
 	addi	%r9 %r0 min_caml_half_pi
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fblt	%f2 %f5 min_caml_cos_3
 	fneg	%f6 %f2
 	fadd	%f2 %f3 %f6
@@ -36,7 +36,7 @@ min_caml_cos_2_0:
 min_caml_cos_3:
 	# x <= pi/4ならkernel_cos, そうでないならx := pi/2 - x, kernel_sinする
 	addi	%r9 %r0 min_caml_quarter_pi
-	fld	%f6 0(%r9)
+	flw	%f6 0(%r9)
 	fble	%f2 %f6 min_caml_kernel_cos
 	fneg	%f6 %f2
 	fadd	%f2 %f5 %f6
@@ -47,18 +47,18 @@ min_caml_kernel_cos:
 	# f2: answer, f3: x^2, f5: const
 	fmul	%f3 %f2 %f2
 	addi	%r9 %r0 min_caml_kernel_cos_c3
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fmul	%f2 %f5 %f3
 	addi	%r9 %r0 min_caml_kernel_cos_c2
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fadd	%f2 %f2 %f5
 	fmul	%f2 %f2 %f3
 	addi	%r9 %r0 min_caml_kernel_cos_c1
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fadd	%f2 %f2 %f5
 	fmul	%f2 %f2 %f3
 	addi	%r9 %r0 min_caml_float_1
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fadd	%f2 %f2 %f5
 	beq	%r8 %r0 min_caml_kernel_cos_positive
 	fabs	%f2 %f2
@@ -73,7 +73,7 @@ min_caml_sin:
 	# r8: FLAG, r9: addr
 	# f2: x, f3: pi, f5: pi/2, f6: temp
 	addi	%r9 %r0 min_caml_float_0
-	fld	%f3 0(%r9)
+	flw	%f3 0(%r9)
 	fblt	%f2 %f3 min_caml_sin_flag_negative
 	addi	%r8 %r0 $0
 	beq	%r0 %r0 min_caml_sin_after_flag
@@ -81,16 +81,16 @@ min_caml_sin_flag_negative:
 	addi	%r8 %r0 $1
 	fabs	%f2 %f2
 min_caml_sin_after_flag:
-	st	-1(%r29) %r8
+	sw	-1(%r29) %r8
 	addi	%r29 %r29 $-2
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_reduction_2pi
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $2
-	ld	-1(%r29) %r8
+	lw	-1(%r29) %r8
 	# x >= piならx := x - pi, FLAG reverse
 	addi	%r9 %r0 min_caml_pi
-	fld	%f3 0(%r9)
+	flw	%f3 0(%r9)
 	fblt	%f2 %f3 min_caml_sin_2
 	fneg	%f6 %f3
 	fadd	%f2 %f2 %f6
@@ -102,14 +102,14 @@ min_caml_sin_1_0:
 min_caml_sin_2:
 	# x >= pi/2ならx := pi - x
 	addi	%r9 %r0 min_caml_half_pi
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fblt	%f2 %f5 min_caml_sin_3
 	fneg	%f6 %f2
 	fadd	%f2 %f3 %f6
 min_caml_sin_3:
 	# x <= pi/4ならkernel_sin, そうでないならx := pi/2 - x, kernel_cosする
 	addi	%r9 %r0 min_caml_quarter_pi
-	fld	%f6 0(%r9)
+	flw	%f6 0(%r9)
 	fble	%f2 %f6 min_caml_kernel_sin
 	fneg	%f6 %f2
 	fadd	%f2 %f5 %f6
@@ -120,14 +120,14 @@ min_caml_kernel_sin:
 	# f2: x or answer, f3: temp, f4: x^2, f5: const
 	fmul	%f4 %f2 %f2
 	addi	%r9 %r0 min_caml_kernel_sin_c3
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fmul	%f3 %f5 %f4
 	addi	%r9 %r0 min_caml_kernel_sin_c2
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fadd	%f3 %f3 %f5
 	fmul	%f3 %f3 %f4
 	addi	%r9 %r0 min_caml_kernel_sin_c1
-	fld	%f5 0(%r9)
+	flw	%f5 0(%r9)
 	fadd	%f3 %f3 %f5
 	fmul	%f3 %f3 %f4
 	fmul	%f3 %f3 %f2
@@ -144,12 +144,12 @@ min_caml_reduction_2pi:
 	# f2を[0, 2pi)にする
 	# f3: 2*pi, f4: 0.5, f5: p, f6: 2.0 or -p
 	addi	%r9 %r0 min_caml_2pi
-	fld	%f3 0(%r9)
+	flw	%f3 0(%r9)
 	fmov	%f5 %f3
 	addi	%r9 %r0 min_caml_float_half
-	fld	%f4 0(%r9)
+	flw	%f4 0(%r9)
 	addi	%r9 %r0 min_caml_float_2
-	fld	%f6 0(%r9)
+	flw	%f6 0(%r9)
 min_caml_reduction_2pi_while1:
 	fblt	%f2 %f5 min_caml_reduction_2pi_while2
 	fmul	%f5 %f5 %f6

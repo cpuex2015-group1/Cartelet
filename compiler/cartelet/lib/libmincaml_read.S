@@ -54,13 +54,13 @@ min_caml_read_float:
 	# float_of_intの分の誤差も入ることに注意。
 	# 整数も受け取る。".1"(= 0.1)みたいなのには対応していない。
 	addi	%r29 %r29 $-2
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_read_int
-	st	1(%r29) %r3  # r3の区切り文字情報をストアしておく
+	sw	1(%r29) %r3  # r3の区切り文字情報をストアしておく
 	jal	min_caml_float_of_int
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $2
-	ld	-1(%r29) %r8
+	lw	-1(%r29) %r8
 	addi	%r9 %r0 $0x2e  # '.'
 	bneq	%r8 %r9 min_caml_read_float_exit
 	# ここから小数点以下
@@ -101,20 +101,20 @@ min_caml_read_float_loop2:
 	add	%r2 %r2 %r8
 	beq	%r0 %r0 min_caml_read_float_loop2
 min_caml_read_float_loop2_exit:
-	fst	-1(%r29) %f0
-	st	-2(%r29) %r3
+	fsw	-1(%r29) %f0
+	sw	-2(%r29) %r3
 	addi	%r29 %r29 $-3
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_float_of_int
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $3
-	fld	-1(%r29) %f1
-	ld	-2(%r29) %r3
+	flw	-1(%r29) %f1
+	lw	-2(%r29) %r3
 	# 小数点以下の部分を0.fffまでずらし、更に頭の0の個数だけずらす
 	addi	%r8 %r0 min_caml_float_1
-	fld	%f2 0(%r8)
+	flw	%f2 0(%r8)
 	addi	%r8 %r0 min_caml_read_float_c1
-	fld	%f3 0(%r8)
+	flw	%f3 0(%r8)
 min_caml_read_float_loop3:
 	# r3: #(head zero)
 	# f0: 小数点以下, f1: 整数部分, f2: 1.0f, f3: 0.1f
@@ -131,7 +131,7 @@ min_caml_read_float_loop4:
 min_caml_read_float_loop4_exit:
 	# 符号の兼ね合いを見つつ整数部分と小数点以下の部分を足す
 	addi	%r8 %r0 min_caml_float_0
-	fld	%f2 0(%r8)
+	flw	%f2 0(%r8)
 	fslt	%f1 %f2
 	bclf	min_caml_read_float_loop_exit_positive
 	fneg	%f0 %f0
@@ -160,6 +160,6 @@ min_caml_read_float_byte:
 	recv8	%r2
 	sll	%r2 %r2 %r8
 	recv8	%r2
-	st	-1(%r29) %r2
-	fld	-1(%r29) %f0
+	sw	-1(%r29) %r2
+	flw	-1(%r29) %f0
 	jr	%r31

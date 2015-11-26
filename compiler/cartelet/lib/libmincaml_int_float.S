@@ -9,7 +9,7 @@ min_caml_int_of_float:
 min_caml_truncate:
 	# FLAGを決めてabsをする
 	addi	%r9 %r0 min_caml_float_0
-	fld	%f1 0(%r9)
+	flw	%f1 0(%r9)
 	fslt	%f0 %f1
 	bclt	min_caml_int_of_float_flag_negative
 	addi	%r8 %r0 $0
@@ -19,15 +19,15 @@ min_caml_int_of_float_flag_negative:
 	fneg	%f0 %f0
 min_caml_int_of_float_after_flag:
 	addi	%r9 %r0 min_caml_float_int_c2
-	fld	%f1 0(%r9)
+	flw	%f1 0(%r9)
 	fslt	%f0 %f1
 	bclf	min_caml_int_of_float_big
 	# |x| < 8388608.0
 	# r2: answer, r8: FLAG, r9: addr, r10: imm, r11: const for shift
 	# f0: |x|, f1: 8388608.0
 	fadd	%f0 %f0 %f1
-	fst	-1(%r29) %f0
-	ld	-1(%r29) %r2
+	fsw	-1(%r29) %f0
+	lw	-1(%r29) %r2
 	addiu32	%r10 %r0 $0x4b000000
 	sub	%r2 %r2 %r10
 	# FLAGの調整
@@ -49,13 +49,13 @@ min_caml_int_of_float_big_loop:
 	fslt	%f0 %f1
 	bclf	min_caml_int_of_float_big_loop
 	# int_of_float(n)を足す
-	st	-1(%r29) %r2
+	sw	-1(%r29) %r2
 	addi	%r29 %r29 $-2
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_int_of_float
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $2
-	ld	-1(%r29) %r3
+	lw	-1(%r29) %r3
 	add	%r2 %r2 %r3
 	# FLAGの調整
 	beq	%r8 %r0 min_caml_int_of_float_big_positive
@@ -83,10 +83,10 @@ min_caml_float_of_int_after_flag:
 	# f0: answer
 	addiu32	%r8 %r0 $0x4b000000
 	add	%r10 %r11 %r8
-	st	-1(%r29) %r10
-	fld	-1(%r29) %f0
+	sw	-1(%r29) %r10
+	flw	-1(%r29) %f0
 	addi	%r8 %r0 min_caml_float_int_c1
-	fld	%f1 0(%r8)
+	flw	%f1 0(%r8)
 	fadd	%f0 %f0 %f1
 	# FLAG
 	beq	%r9 %r0 min_caml_float_of_int_small_positive
@@ -99,9 +99,9 @@ min_caml_float_of_int_big:
 	# r2: x, r8: |x| or n, r9: FLAG, r10: 8388608, r11: -8388608, r12: temp
 	# f0: answer, f1: 8388608.0
 	addi	%r8 %r0 min_caml_float_0
-	fld	%f0 0(%r8)
+	flw	%f0 0(%r8)
 	addi	%r8 %r0 min_caml_float_int_c2
-	fld	%f1 0(%r8)
+	flw	%f1 0(%r8)
 	add	%r8 %r0 %r11
 	add	%r9 %r0 %r0
 	addiu32	%r10 %r0 $8388608
@@ -113,16 +113,16 @@ min_caml_float_of_int_big_loop:
 	slt	%r12 %r8 %r10
 	beq	%r12 %r0 min_caml_float_of_int_big_loop
 	# float_of_int(n)を求める
-	st	-1(%r29) %r2
-	fst	-2(%r29) %f0
+	sw	-1(%r29) %r2
+	fsw	-2(%r29) %f0
 	addi	%r29 %r29 $-3
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	add	%r2 %r0 %r8
 	jal	min_caml_float_of_int
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $3
-	fld	-2(%r29) %f1
-	ld	-1(%r29) %r2
+	flw	-2(%r29) %f1
+	lw	-1(%r29) %r2
 	# 足し算する
 	fadd	%f0 %f0 %f1
 	# FLAG

@@ -26,17 +26,17 @@ min_caml_print_int_positive:
 min_caml_print_int_loop:
 	# max 10 digits
 	# divide by 10
-	st	-1(%r29) %r2
-	st	-2(%r29) %r8
-	st	-3(%r29) %r9
-	st	-4(%r29) %r12
+	sw	-1(%r29) %r2
+	sw	-2(%r29) %r8
+	sw	-3(%r29) %r9
+	sw	-4(%r29) %r12
 	addi	%r29 %r29 $-5
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_div10
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $5
-	ld	-1(%r29) %r8
-	ld	-4(%r29) %r12	
+	lw	-1(%r29) %r8
+	lw	-4(%r29) %r12	
 	# multiply by 10
 	addi	%r9 %r0 $1
 	sll	%r10 %r2 %r9
@@ -47,8 +47,8 @@ min_caml_print_int_loop:
 	sub	%r10 %r8 %r10
 	# [0-9] in binary -> ASCII
 	addi	%r10 %r10 $0x30	
-	ld	-2(%r29) %r8
-	ld	-3(%r29) %r9
+	lw	-2(%r29) %r8
+	lw	-3(%r29) %r9
 	addi	%r13 %r0 $8
 	sll	%r9 %r9 %r13
 	addi	%r14 %r0 $24
@@ -66,15 +66,15 @@ min_caml_print_int_loop_exit:
 	# r2: x/(10^7), r8: upper 4 bytes ASCII, r9: lower 4 bytes ASCII
 	# remark: byte sequence is reversed
 	# divide by 10
-	st	-1(%r29) %r2
-	st	-2(%r29) %r8
-	st	-3(%r29) %r9
+	sw	-1(%r29) %r2
+	sw	-2(%r29) %r8
+	sw	-3(%r29) %r9
 	addi	%r29 %r29 $-4
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_div10
-	ld	%r31 0(%r29)
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $4
-	ld	-1(%r29) %r8
+	lw	-1(%r29) %r8
 	# multiply by 10
 	addi	%r9 %r0 $1
 	sll	%r10 %r2 %r9
@@ -91,8 +91,8 @@ min_caml_print_int_loop_exit:
 	send8	%r2
 min_caml_print_int_send_9:
 	send8	%r10
-	ld	-2(%r29) %r8
-	ld	-3(%r29) %r9
+	lw	-2(%r29) %r8
+	lw	-3(%r29) %r9
 min_caml_print_int_send:
 	addi	%r10 %r0 $8
 	send8	%r8
@@ -133,8 +133,8 @@ min_caml_print_int_byte:
 	jr	%r31	
 # print_float (32bit, byte -> byte)
 min_caml_print_float_byte:
-	fst	-1(%r29) %f0
-	ld	-1(%r29) %r8
+	fsw	-1(%r29) %f0
+	lw	-1(%r29) %r8
 	addi	%r9 %r0 $24
 	srl	%r10 %r8 %r9
 	send8	%r10
