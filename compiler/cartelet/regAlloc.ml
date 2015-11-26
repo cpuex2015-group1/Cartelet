@@ -145,7 +145,7 @@ and g'_and_restore dest cont regenv exp = (* »ÈÍÑ¤µ¤ì¤ëÊÑ¿ô¤ò¥¹¥¿¥Ã¥¯¤«¤é¥ì¥¸¥¹¥
     ((* Format.eprintf "restoring %s@." x; *)
      g dest cont regenv (Let((x, t), Restore(x, Asm.pos_of_exp exp), Ans(exp))))
 and g' dest cont regenv = function (* ³ÆÌ¿Îá¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_gprime) *)
-  | Nop _ | Set _ | SetL _ | Comment _ | Restore _ as exp -> (Ans(exp), regenv)
+  | Nop _ | Set _ | SetL _ | Recv _ | Comment _ | Restore _ as exp -> (Ans(exp), regenv)
   | Mov(x, p) -> (Ans(Mov(find x Type.Int regenv, p)), regenv)
   | Neg(x, p) -> (Ans(Neg(find x Type.Int regenv, p)), regenv)
   | Add(x, y', p) -> (Ans(Add(find x Type.Int regenv, find' y' regenv, p)), regenv)
@@ -168,7 +168,6 @@ and g' dest cont regenv = function (* ³ÆÌ¿Îá¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regal
   | LdF(x, y', i, p) -> (Ans(LdF(find x Type.Int regenv, find' y' regenv, i, p)), regenv)
   | StF(x, y, z', i, p) -> (Ans(StF(find x Type.Float regenv, find y Type.Int regenv, find' z' regenv, i, p)), regenv)
   | Send(x, p) -> (Ans(Send(find x Type.Int regenv, p)), regenv)
-  | Recv(x, p) -> (Ans(Recv(find x Type.Int regenv, p)), regenv)
   | IfEq(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfEq(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
   | IfLE(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfLE(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
   | IfGE(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfGE(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p

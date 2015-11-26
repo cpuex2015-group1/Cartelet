@@ -30,7 +30,7 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | LdF of Id.t * id_or_imm * Lexing.position
   | StF of Id.t * Id.t * id_or_imm * Lexing.position
   | Send of Id.t * Lexing.position (* id_or_immにしてもいいかも? *)
-  | Recv of Id.t * Lexing.position
+  | Recv of Lexing.position
   | Comment of string * Lexing.position
   (* virtual instructions *)
   | IfEq of Id.t * id_or_imm * t * t * Lexing.position
@@ -62,8 +62,8 @@ let allregs = Array.to_list regs
 let allfregs = Array.to_list fregs
 let reg_cl = regs.(Array.length regs - 1)  (* closure address *)
 
-let  reg_sw   = "%r27"  (* temporary registor for swap *)
-let freg_sw   = "%f27"
+let  reg_tmp  = "%r27"  (* temporary registor for swap *)
+let freg_tmp  = "%f27"
 let  reg_zero = "%r0"
 let freg_zero = "%f0"
 let  reg_rv   = "%r2"  (* return value *)
@@ -83,13 +83,13 @@ let rec remove_and_uniq xs = function
 (* free variables in the order of use (for spilling) (caml2html: sparcasm_fv) *)
 let fv_id_or_imm = function V(x) -> [x] | _ -> []
 let rec fv_exp = function
-  | Nop _ | Set _ | SetL _ | Comment _ | Restore _ -> []
-  | Mov(x, _) | Neg(x, _) | Slli(x, _, _) | Srai(x, _, _) | FMov(x, _) | FNeg(x, _) | FInv(x, _) | FSqrt(x, _) | FAbs(x, _) | Save(x, _, _) | Send(x, _) | Recv(x, _) -> [x]
+  | Nop _ | Set _ | SetL _ | Recv _ | Comment _ | Restore _ -> []
+  | Mov(x, _) | Neg(x, _) | Slli(x, _, _) | Srai(x, _, _) | FMov(x, _) | FNeg(x, _) | FInv(x, _) | FSqrt(x, _) | FAbs(x, _) | Save(x, _, _) | Send(x, _) -> [x]
   | Add(x, y', _) | Sub(x, y', _) | Mul(x, y', _) | Div(x, y', _) | Ld(x, y', _) | LdF(x, y', _) -> x :: fv_id_or_imm y'
   | St(x, y, z', _) | StF(x, y, z', _) -> x :: y :: fv_id_or_imm z'
   | FAdd(x, y, _) | FSub(x, y, _) | FMul(x, y, _) | FDiv(x, y, _) -> [x; y]
   | IfEq(x, y', e1, e2, _) | IfLE(x, y', e1, e2, _) | IfGE(x, y', e1, e2, _) -> x :: fv_id_or_imm y' @ remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
-  | IfFEq(x, y, e1, e2, _) | IfFLE(x, y, e1, e2, _) | IfFLt(x, y, e1, e2, _) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
+  | IfFEq(x, y, e1, e2, _) | IfFLE(x, y, e1, e2, _) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | CallCls(x, ys, zs, _) -> x :: ys @ zs
   | CallDir(_, ys, zs, _) -> ys @ zs
 and fv = function
@@ -113,8 +113,9 @@ let pos_of_exp = function (* Asm.expからLexing.positionを抜き出す *)
   | Ld(_, _, p) | St(_, _, _, p)
   | FMov(_, p) | FNeg(_, p) | FAdd(_, _, p) | FSub(_, _, p) | FMul(_, _, p) | FDiv(_, _, p) | FInv(_, p) | FSqrt(_, p) | FAbs(_, p)
   | LdF(_, _, p) | StF(_, _, _, p)
+  | Send(_, p) | Recv(p)
   | Comment (_, p)
   | IfEq(_, _, _, _, p) | IfLE(_, _, _, _, p) | IfGE(_, _, _, _, p)
-  | IfFEq(_, _, _, _, p) | IfFLE(_, _, _, _, p) | IfFLt(_, _, _, _, p)
+  | IfFEq(_, _, _, _, p) | IfFLE(_, _, _, _, p)
   | CallCls(_, _, _, p) | CallDir(_, _, _, p)
   | Save(_, _, p) | Restore(_, p) -> p
