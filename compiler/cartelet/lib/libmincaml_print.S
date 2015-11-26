@@ -72,7 +72,7 @@ min_caml_print_int_loop_exit:
 	lw	-1(%r29) %r8
 	# multiply by 10
 	slli	%r10 %r2 $1
-	slli	%r11 %r2 $1
+	slli	%r11 %r2 $3
 	add	%r10 %r10 %r11
 	# x mod 10
 	sub	%r10 %r8 %r10
