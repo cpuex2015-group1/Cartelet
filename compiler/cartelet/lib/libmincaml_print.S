@@ -12,8 +12,7 @@ min_caml_print_char:
 min_caml_print_int:
 	# x : signed 32 bit int
 	# マイナスだけ出力
-	slt	%r8 %r2 %r0
-	beq	%r8 %r0 min_caml_print_int_positive
+	ble	%r0 %r2 min_caml_print_int_positive
 	addi	%r8 %r0 $0x2d # '-'
 	send8	%r8
 	sub	%r2 %r0 %r2
@@ -38,10 +37,8 @@ min_caml_print_int_loop:
 	lw	-1(%r29) %r8
 	lw	-4(%r29) %r12	
 	# multiply by 10
-	addi	%r9 %r0 $1
-	sll	%r10 %r2 %r9
-	addi	%r9 %r0 $3
-	sll	%r11 %r2 %r9
+	slli	%r10 %r2 $1
+	slli	%r11 %r2 $3
 	add	%r10 %r10 %r11
 	# x mod 10
 	sub	%r10 %r8 %r10
@@ -49,12 +46,10 @@ min_caml_print_int_loop:
 	addi	%r10 %r10 $0x30	
 	lw	-2(%r29) %r8
 	lw	-3(%r29) %r9
-	addi	%r13 %r0 $8
-	sll	%r9 %r9 %r13
-	addi	%r14 %r0 $24
-	srl	%r11 %r8 %r14
+	slli	%r9 %r9 $8
+	slli	%r11 %r8 $-24
 	add	%r9 %r9 %r11
-	sll	%r8 %r8 %r13
+	slli	%r8 %r8 $8
 	add	%r8 %r8 %r10
 	# loop check
 	beq	%r2 %r0 min_caml_print_int_send
@@ -76,10 +71,8 @@ min_caml_print_int_loop_exit:
 	addi	%r29 %r29 $4
 	lw	-1(%r29) %r8
 	# multiply by 10
-	addi	%r9 %r0 $1
-	sll	%r10 %r2 %r9
-	addi	%r9 %r0 $1
-	sll	%r11 %r2 %r9
+	slli	%r10 %r2 $1
+	slli	%r11 %r2 $1
 	add	%r10 %r10 %r11
 	# x mod 10
 	sub	%r10 %r8 %r10
@@ -94,55 +87,48 @@ min_caml_print_int_send_9:
 	lw	-2(%r29) %r8
 	lw	-3(%r29) %r9
 min_caml_print_int_send:
-	addi	%r10 %r0 $8
 	send8	%r8
-	srl	%r8 %r8 %r10
+	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
-	srl	%r8 %r8 %r10
+	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
-	srl	%r8 %r8 %r10
+	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
-	srl	%r9 %r9 %r10
+	slli	%r8 %r8 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
-	srl	%r9 %r9 %r10
+	slli	%r8 %r8 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
-	srl	%r9 %r9 %r10
+	slli	%r8 %r8 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
 min_caml_print_int_exit:
 	jr	%r31
 # print_int (32bit, byte -> byte)
 min_caml_print_int_byte:
-	addi	%r9 %r0 $24
-	srl	%r10 %r2 %r9
+	slli	%r10 %r2 $-24
 	send8	%r10
-	addi	%r9 %r0 $16
-	srl	%r10 %r2 %r9
+	slli	%r10 %r2 $-16
 	send8	%r10
-	addi	%r9 %r0 $8
-	srl	%r10 %r2 %r9
+	slli	%r10 %r2 $-8
 	send8	%r10
 	send8	%r2
 	jr	%r31	
 # print_float (32bit, byte -> byte)
 min_caml_print_float_byte:
-	fsw	-1(%r29) %f0
+	fsw	-1(%r29) %f2
 	lw	-1(%r29) %r8
-	addi	%r9 %r0 $24
-	srl	%r10 %r8 %r9
+	slli	%r10 %r8 $-24
 	send8	%r10
-	addi	%r9 %r0 $16
-	srl	%r10 %r8 %r9
+	slli	%r10 %r8 $-16
 	send8	%r10
-	addi	%r9 %r0 $8
-	srl	%r10 %r8 %r9
+	slli	%r10 %r8 $-8
 	send8	%r10
 	send8	%r8
 	jr	%r31	
