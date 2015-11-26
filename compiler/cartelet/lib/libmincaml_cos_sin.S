@@ -72,9 +72,7 @@ min_caml_sin:
 	# 定義域を[0, 2pi)にする
 	# r8: FLAG, r9: addr
 	# f2: x, f3: pi, f5: pi/2, f6: temp
-	addi	%r9 %r0 min_caml_float_0
-	flw	%f3 0(%r9)
-	fblt	%f2 %f3 min_caml_sin_flag_negative
+	fblt	%f2 %f0 min_caml_sin_flag_negative
 	addi	%r8 %r0 $0
 	beq	%r0 %r0 min_caml_sin_after_flag
 min_caml_sin_flag_negative:
