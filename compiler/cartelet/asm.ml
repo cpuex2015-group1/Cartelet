@@ -54,7 +54,7 @@ let regs_tmp       = Array.init 15 (fun i -> Printf.sprintf "%%r%d" (i+2))
 let regs_saved_tmp = Array.init 10 (fun i -> Printf.sprintf "%%r%d" (i+17))
 let regs = regs_tmp
 let fregs_tmp       = Array.append
-			(Array.init 15 (fun i -> Printf.sprintf "%%f%d" (i+ 2)))
+			(Array.init 15 (fun i -> Printf.sprintf "%%f%d" (i+2)))
 			(Array.init  4 (fun i -> Printf.sprintf "%%f%d" (i+28)))
 let fregs_saved_tmp = Array.init 10 (fun i -> Printf.sprintf "%%f%d" (i+17))
 let fregs = fregs_tmp
