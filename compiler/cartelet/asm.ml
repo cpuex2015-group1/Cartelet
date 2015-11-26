@@ -103,8 +103,6 @@ let rec concat e1 xt e2 =
   | Ans(exp) -> Let(xt, exp, e2)
   | Let(yt, exp, e1') -> Let(yt, exp, concat e1' xt e2)
 
-let align i = (if i mod 4 = 0 then i else i + 4)
-
 let pos_of_exp = function (* Asm.expからLexing.positionを抜き出す *)
     Nop(p)
   | Set(_, p) | SetL(_, p) | Mov(_, p)

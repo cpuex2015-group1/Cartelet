@@ -12,16 +12,23 @@ and exp =
   | Sub of Id.t * id_or_imm * Lexing.position
   | Mul of Id.t * id_or_imm * Lexing.position
   | Div of Id.t * id_or_imm * Lexing.position
-  | Ld of Id.t * id_or_imm * int * Lexing.position
-  | St of Id.t * Id.t * id_or_imm * int * Lexing.position
+  | Slli of Id.t * int * Lexing.position
+  | Srai of Id.t * int * Lexing.position
+  | Ld of Id.t * id_or_imm * Lexing.position
+  | St of Id.t * Id.t * id_or_imm * Lexing.position
   | FMov of Id.t * Lexing.position
   | FNeg of Id.t * Lexing.position
   | FAdd of Id.t * Id.t * Lexing.position
   | FSub of Id.t * Id.t * Lexing.position
   | FMul of Id.t * Id.t * Lexing.position
   | FDiv of Id.t * Id.t * Lexing.position
-  | LdF of Id.t * id_or_imm * int * Lexing.position
-  | StF of Id.t * Id.t * id_or_imm * int * Lexing.position
+  | FInv of Id.t * Lexing.position
+  | FSqrt of Id.t * Lexing.position
+  | FAbs of Id.t * Lexing.position
+  | LdF of Id.t * id_or_imm * Lexing.position
+  | StF of Id.t * Id.t * id_or_imm * Lexing.position
+  | Send of Id.t * Lexing.position
+  | Recv of Lexing.position
   | Comment of string * Lexing.position
   (* virtual instructions *)
   | IfEq of Id.t * id_or_imm * t * t * Lexing.position
@@ -44,24 +51,21 @@ val regs : Id.t array
 val fregs : Id.t array
 val allregs : Id.t list
 val allfregs : Id.t list
-val reg_cl : Id.t
 
-val reg_sw : Id.t
-val reg_fsw : Id.t
+val  reg_cl   : Id.t
+val  reg_tmp  : Id.t
+val freg_tmp  : Id.t
+val  reg_zero : Id.t
+val freg_zero : Id.t
+val  reg_rv   : Id.t
+val freg_rv   : Id.t
+val  reg_hp   : Id.t
+val  reg_sp   : Id.t
+val  reg_ra   : Id.t
 
-val reg_zero : Id.t
-val reg_tmp : Id.t
-val reg_ftmp : Id.t
-val reg_rv : Id.t
-val reg_frv : Id.t
-val reg_hp : Id.t
-val reg_sp : Id.t
-val reg_ra : Id.t
 val is_reg : Id.t -> bool
 
 val fv : t -> Id.t list
 val concat : t -> Id.t * Type.t -> t -> t
-
-val align : int -> int
 
 val pos_of_exp : exp -> Lexing.position
