@@ -94,6 +94,14 @@ void exec_inst(uint32_t inst)
     pc++;
     addi_count++;
     break;
+  case OP_ADDIU:
+    gpr[r1]=gpr[r2]+uimm;
+    if (!noprintflag) {
+      printf("addiu : r%d <- r%d + %d\n",r1,r2,uimm);
+    }
+    pc++;
+    addiu_count++;
+    break;
   case OP_SUB:
     gpr[r1]=gpr[r2]-gpr[r3];
     if (!noprintflag) {
@@ -102,51 +110,33 @@ void exec_inst(uint32_t inst)
     pc++;
     sub_count++;
     break;
-  case OP_SUBI:
-    gpr[r1]=gpr[r2]-imm;
-    if (!noprintflag) {
-      printf("subi : r%d <- r%d - %d\n",r1,r2,imm);
-    }
-    pc++;
-    subi_count++;
-    break;
-  case OP_BEQ:
-    if (gpr[r1]==gpr[r2]) {
-      pc=pc+1+imm;
+  case OP_SLLI:
+    if (imm>=0) {
+      gpr[r1]=(unsigned) gpr[r2]<<imm;
     } else {
-      pc++;
+      gpr[r1]=(unsigned) gpr[r2]>>(-imm);
     }
     if (!noprintflag) {
-      printf("beq : pc <- (r%d = r%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+      printf("slli : r%d <- r%d << %d\n",r1,r2,imm);
     }
-    beq_count++;
+    pc++;
+    slli_count++;
     break;
-  case OP_BNEQ:
-    if (gpr[r1]!=gpr[r2]) {
-      pc=pc+1+imm;
+  case OP_SRAI:
+    if (imm>=0) {
+      gpr[r1]=gpr[r2]>>imm;
     } else {
-      pc++;
+      gpr[r1]=gpr[r2]<<(-imm);
     }
     if (!noprintflag) {
-      printf("bneq : pc <- (r%d != r%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
-    }
-    bneq_count++;
-    break;
-  case OP_ST:
-    sram[gpr[r1]+imm]=gpr[r2];
-    if (!noprintflag) {
-      printf("st : mem[r%d + %d] <- r%d\n",r1,imm,r2);
+      printf("srai : r%d <- r%d >>> r%d\n",r1,r2,imm);
     }
     pc++;
-    st_count++;
+    srl_count++;
     break;
-  case OP_LD:
-    gpr[r2]=sram[gpr[r1]+imm];
-    if (!noprintflag) {
-      printf("ld : r%d <- mem[r%d + %d]\n",r2,r1,imm);
-    }
+  case OP_BCND:
     pc++;
-    ld_count++;
+    bcnd_count++;
     break;
   case OP_JR:
     pc=gpr[r1];
@@ -163,32 +153,58 @@ void exec_inst(uint32_t inst)
     }
     jal_count++;
     break;
-  case OP_SEND:
+  case OP_LW:
+    gpr[r1]=sram[gpr[r2]+imm];
     if (!noprintflag) {
-      printf("send : r%d = %d\n",r1,gpr[r1]);
+      printf("lw : r%d <- mem[r%d + %d]\n",r1,r2,imm);
+    }
+    pc++;
+    ld_count++;
+    break;
+  case OP_SW:
+    sram[gpr[r1]+imm]=gpr[r2];
+    if (!noprintflag) {
+      printf("sw : mem[r%d + %d] <- r%d\n",r1,imm,r2);
+    }
+    pc++;
+    st_count++;
+    break;
+  case OP_SEND:
+    if (send8flag) {
+      senddata=gpr[r1]&0xff;
+      fwrite(&senddata,1,1,fpsend8);
+    }
+    if (!noprintflag) {
+      printf("send : r%d = ",r1);
+      print8(gpr[r1]);
+    }
+    if (send8_bp) {
+      stepflag=1;
     }
     pc++;
     send_count++;
     break;
-  case OP_HALT:
-    halt_count++;
-    break;
-  case OP_SLL:
-    gpr[r1]=gpr[r2]<<gpr[r3];
+  case OP_RECV:
+    if (recv8flag && fread(&recvdata,1,1,fprecv8)==0) {
+      printf("recv(hexで入力)>");
+      scanf("%x",&recvdata);
+    }
+    gpr[r1]=(gpr[r1]&0xffffff00)|recvdata;
     if (!noprintflag) {
-      printf("sll : r%d <- r%d << r%d\n",r1,r2,r3);
+      printf("recv : r%d <- ",r1);
+      print8(recvdata);
     }
     pc++;
-    sll_count++;
+    recv_count++;
     break;
-  case OP_SRL:
-    gpr[r1]=gpr[r2]>>gpr[r3];
+  case OP_FMOV:
+    fpr[r1].i=fpr[r2].i;
     if (!noprintflag) {
-      printf("srl : r%d <- r%d >> r%d\n",r1,r2,r3);
+      printf("fmov : f%d <- f%d\n",r1,r2);
     }
     pc++;
-    srl_count++;
-    break;
+    fmov_count++;
+    break; 
   case OP_FADD:
     if (x86flag) {
       fpr[r1].f=fpr[r2].f+fpr[r3].f;
@@ -200,6 +216,10 @@ void exec_inst(uint32_t inst)
     }
     pc++;
     fadd_count++;
+    break;
+  case OP_FSUB:
+    pc++;
+    fsub_count++;
     break;
   case OP_FMUL:
     if (x86flag) {
@@ -225,6 +245,27 @@ void exec_inst(uint32_t inst)
     }
     pc++;
     finv_count++;
+    break;  
+  case OP_FSQRT:
+    if (x86flag) {
+      fpr[r1].f=sqrt(fpr[r2].f);
+    } else {
+      fsqrt_addr=(fpr[r2].i & 0xFFC000)>>14;
+      fpr[r1].i=fsqrt(fpr[r2].i,fsqrt_table1[fsqrt_addr],fsqrt_table2[fsqrt_addr]);
+    }
+    if (!noprintflag) {
+      printf("fsqrt : f%d <- sqrt(f%d)\n",r1,r2);
+    }
+    pc++;
+    fsqrt_count++;
+    break;
+  case OP_FNEG:
+    fpr[r1].f=-fpr[r2].f;
+    if (!noprintflag) {
+      printf("fneg : f%d <- -f%d\n",r1,r2);
+    }
+    pc++;
+    fneg_count++;
     break;
   case OP_FABS:
     if (fpr[r2].f<0) {
@@ -238,144 +279,9 @@ void exec_inst(uint32_t inst)
     pc++;
     fabs_count++;
     break;
-  case OP_FNEG:
-    fpr[r1].f=-fpr[r2].f;
-    if (!noprintflag) {
-      printf("fneg : f%d <- -f%d\n",r1,r2);
-    }
+  case OP_FBCND:
     pc++;
-    fneg_count++;
-    break;
-  case OP_SLT:
-    if (gpr[r2]<gpr[r3]) {
-      gpr[r1]=1;
-    } else {
-      gpr[r1]=0;
-    }
-    if (!noprintflag) {
-      printf("slt : r%d <- (r%d < r%d) ? 1 : 0\n",r1,r2,r3);
-    }
-    pc++;
-    slt_count++;
-    break;
-  case OP_FSEQ:
-    if (fpr[r1].f==fpr[r2].f) {
-      fpcond=1;
-    } else {
-      fpcond=0;
-    }
-    if (!noprintflag) {
-      printf("fseq : fpcond <- (f%d = f%d) ? 1 : 0\n",r1,r2);
-    }
-    pc++;
-    fseq_count++;
-    break;
-  case OP_FSLT:
-    if (fpr[r1].f<fpr[r2].f) {
-      fpcond=1;
-    } else {
-      fpcond=0;
-    }
-    if (!noprintflag) {
-      printf("fslt : fpcond <- (f%d < f%d) ? 1 : 0\n",r1,r2);
-    }
-    pc++;
-    fslt_count++;
-    break;
-  case OP_BCLT:
-    if (fpcond==1) {
-      pc=pc+addr+1;
-    } else {
-      pc++;
-    }
-    if (!noprintflag) {
-      printf("bclt : pc <- (fpcond = 1) ? pc + %d + 1 : pc + 1\n",addr);
-    }
-    bclt_count++;
-    break;
-  case OP_BCLF:
-    if (fpcond==0) {
-      pc=pc+addr+1;
-    } else {
-      pc++;
-    }
-    if (!noprintflag) {
-      printf("bclf : pc <- (fpcond = 0) ? pc + %d + 1 : pc + 1\n",addr);
-    }
-    bclf_count++;
-    break;
-  case OP_SEND8:
-    if (send8flag) {
-      senddata=gpr[r1]&0xff;
-      fwrite(&senddata,1,1,fpsend8);
-    }
-    if (!noprintflag) {
-      printf("send8 : r%d = ",r1);
-      print8(gpr[r1]);
-    }
-    if (send8_bp) {
-      stepflag=1;
-    }
-    pc++;
-    send8_count++;
-    break;
-  case OP_RECV8:
-    if (recv8flag && fread(&recvdata,1,1,fprecv8)==0) {
-      printf("recv8(hexで入力)>");
-      scanf("%x",&recvdata);
-    }
-    gpr[r1]=(gpr[r1]&0xffffff00)|recvdata;
-    if (!noprintflag) {
-      printf("recv8 : r%d <- ",r1);
-      print8(recvdata);
-    }
-    pc++;
-    recv8_count++;
-    break;
-  case OP_FST:
-    sram[gpr[r1]+imm]=fpr[r2].i;
-    if (!noprintflag) {
-      printf("fst : mem[r%d + %d] <- f%d\n",r1,imm,r2);
-    }
-    pc++;
-    fst_count++;
-    break;
-  case OP_FLD:
-    fpr[r2].i=sram[gpr[r1]+imm];
-    if (!noprintflag) {
-      printf("fld : f%d <- mem[r%d + %d]\n",r2,r1,imm);
-    }
-    pc++;
-    fld_count++;
-    break;
-  case OP_FMOV:
-    fpr[r1].i=fpr[r2].i;
-    if (!noprintflag) {
-      printf("fmov : f%d <- f%d\n",r1,r2);
-    }
-    pc++;
-    fmov_count++;
-    break;
-  case OP_ADDIU:
-    gpr[r1]=gpr[r2]+uimm;
-    if (!noprintflag) {
-      printf("addiu : r%d <- r%d + %d\n",r1,r2,uimm);
-    }
-    pc++;
-    addiu_count++;
-    break;
-  case OP_FSQRT:
-    if (x86flag) {
-      fpr[r1].f=sqrt(fpr[r2].f);
-    } else {
-      fsqrt_addr=(fpr[r2].i & 0xFFC000)>>14;
-      fpr[r1].i=fsqrt(fpr[r2].i,fsqrt_table1[fsqrt_addr],fsqrt_table2[fsqrt_addr]);
-    }
-    if (!noprintflag) {
-      printf("fsqrt : f%d <- sqrt(f%d)\n",r1,r2);
-    }
-    pc++;
-    fsqrt_count++;
+    fbcnd_count++;
     break;
   default:
     printf("Unknown instruction\n");
