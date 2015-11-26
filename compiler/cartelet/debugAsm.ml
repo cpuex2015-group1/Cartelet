@@ -1,4 +1,4 @@
-(** for cartelet v1 *)
+(** for cartelet v2 *)
 open Asm
 
 let margin = 192
@@ -92,17 +92,17 @@ and exp_iter e =
      | Asm.Sub (id, idimm, p) -> binop_imm_emit "Sub" id idimm
      | Asm.Mul (id, idimm, p) -> binop_imm_emit "Mul" id idimm
      | Asm.Div (id, idimm, p) -> binop_imm_emit "Div" id idimm
-     | Asm.Ld (id, idimm, i, p) ->
+     | Asm.Slli (id, i, p)    -> binop_imm_emit "Slli" id (Asm.C i)
+     | Asm.Srai (id, i, p)    -> binop_imm_emit "Srai" id (Asm.C i)
+     | Asm.Ld (id, idimm, p) ->
 	(Format.open_hbox ();
 	 Format.print_string "Ld";
 	 Format.print_space ();
 	 id_emit id;
 	 Format.print_space ();
 	 id_or_imm_emit idimm;
-	 Format.print_space ();
-	 Format.print_int i;
 	 Format.close_box ())
-     | Asm.St (id0, id1, idimm, i, p) ->
+     | Asm.St (id0, id1, idimm, p) ->
 	(Format.open_hbox ();
 	 Format.print_string "St";
 	 Format.print_space ();
@@ -111,37 +111,36 @@ and exp_iter e =
 	 id_emit id1;
 	 Format.print_space ();
 	 id_or_imm_emit idimm;
-	 Format.print_space ();
-	 Format.print_int i;
 	 Format.close_box ())
-     | Asm.FMov (id, p) -> monop_emit "FMovD" id
-     | Asm.FNeg (id, p) -> monop_emit "FNegD" id
-     | Asm.FAdd (id0, id1, p) -> binop_id_emit "FAddD" id0 id1
-     | Asm.FSub (id0, id1, p) -> binop_id_emit "FSubD" id0 id1
-     | Asm.FMul (id0, id1, p) -> binop_id_emit "FMulD" id0 id1
-     | Asm.FDiv (id0, id1, p) -> binop_id_emit "FDivD" id0 id1
-     | Asm.LdF (id, idimm, i, p) ->
+     | Asm.FMov (id, p) -> monop_emit "FMov" id
+     | Asm.FNeg (id, p) -> monop_emit "FNeg" id
+     | Asm.FAdd (id0, id1, p) -> binop_id_emit "FAdd" id0 id1
+     | Asm.FSub (id0, id1, p) -> binop_id_emit "FSub" id0 id1
+     | Asm.FMul (id0, id1, p) -> binop_id_emit "FMul" id0 id1
+     | Asm.FDiv (id0, id1, p) -> binop_id_emit "FDiv" id0 id1
+     | Asm.FInv (id, p)  -> monop_emit "Finv" id
+     | Asm.FSqrt (id, p) -> monop_emit "FSqrt" id
+     | Asm.FAbs (id, p)  -> monop_emit "FAbs" id
+     | Asm.LdF (id, idimm, p) ->
 	(Format.open_hbox ();
-	 Format.print_string "LdDF";
+	 Format.print_string "LdF";
 	 Format.print_space ();
 	 id_emit id;
 	 Format.print_space ();
 	 id_or_imm_emit idimm;
-	 Format.print_space ();
-	 Format.print_int i;
 	 Format.close_box ())
-     | Asm.StF (id0, id1, idimm, i, p) ->
+     | Asm.StF (id0, id1, idimm, p) ->
 	(Format.open_hbox ();
-	 Format.print_string "StDF";
+	 Format.print_string "StF";
 	 Format.print_space ();
 	 id_emit id0;
 	 Format.print_space ();
 	 id_emit id1;
 	 Format.print_space ();
 	 id_or_imm_emit idimm;
-	 Format.print_space ();
-	 Format.print_int i;
 	 Format.close_box ())
+     | Asm.Send (id, p) -> monop_emit "Send" id
+     | Asm.Recv (p) -> Format.print_string "Recv"
      | Asm.Comment (str, p) ->
 	(Format.open_box 1;
 	 Format.print_string "; ";
