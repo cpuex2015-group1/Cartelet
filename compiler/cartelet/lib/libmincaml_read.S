@@ -58,7 +58,7 @@ min_caml_read_float:
 	jal	min_caml_read_int
 	st	1(%r29) %r3  # r3の区切り文字情報をストアしておく
 	jal	min_caml_float_of_int
-	ld	0(%r29) %r31
+	ld	%r31 0(%r29)
 	addi	%r29 %r29 $2
 	ld	-1(%r29) %r8
 	addi	%r9 %r0 $0x2e  # '.'
@@ -106,15 +106,15 @@ min_caml_read_float_loop2_exit:
 	addi	%r29 %r29 $-3
 	st	0(%r29) %r31
 	jal	min_caml_float_of_int
-	ld	0(%r29) %r31
+	ld	%r31 0(%r29)
 	addi	%r29 %r29 $3
 	fld	-1(%r29) %f1
 	ld	-2(%r29) %r3
 	# 小数点以下の部分を0.fffまでずらし、更に頭の0の個数だけずらす
 	addi	%r8 %r0 min_caml_float_1
-	fld	0(%r8) %f2
+	fld	%f2 0(%r8)
 	addi	%r8 %r0 min_caml_read_float_c1
-	fld	0(%r8) %f3
+	fld	%f3 0(%r8)
 min_caml_read_float_loop3:
 	# r3: #(head zero)
 	# f0: 小数点以下, f1: 整数部分, f2: 1.0f, f3: 0.1f
@@ -131,7 +131,7 @@ min_caml_read_float_loop4:
 min_caml_read_float_loop4_exit:
 	# 符号の兼ね合いを見つつ整数部分と小数点以下の部分を足す
 	addi	%r8 %r0 min_caml_float_0
-	fld	0(%r8) %f2
+	fld	%f2 0(%r8)
 	fslt	%f1 %f2
 	bclf	min_caml_read_float_loop_exit_positive
 	fneg	%f0 %f0

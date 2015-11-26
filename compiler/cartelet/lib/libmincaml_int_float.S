@@ -9,7 +9,7 @@ min_caml_int_of_float:
 min_caml_truncate:
 	# FLAGを決めてabsをする
 	addi	%r9 %r0 min_caml_float_0
-	fld	0(%r9) %f1
+	fld	%f1 0(%r9)
 	fslt	%f0 %f1
 	bclt	min_caml_int_of_float_flag_negative
 	addi	%r8 %r0 $0
@@ -19,7 +19,7 @@ min_caml_int_of_float_flag_negative:
 	fneg	%f0 %f0
 min_caml_int_of_float_after_flag:
 	addi	%r9 %r0 min_caml_float_int_c2
-	fld	0(%r9) %f1
+	fld	%f1 0(%r9)
 	fslt	%f0 %f1
 	bclf	min_caml_int_of_float_big
 	# |x| < 8388608.0
@@ -53,7 +53,7 @@ min_caml_int_of_float_big_loop:
 	addi	%r29 %r29 $-2
 	st	0(%r29) %r31
 	jal	min_caml_int_of_float
-	ld	0(%r29) %r31
+	ld	%r31 0(%r29)
 	addi	%r29 %r29 $2
 	ld	-1(%r29) %r3
 	add	%r2 %r2 %r3
@@ -86,7 +86,7 @@ min_caml_float_of_int_after_flag:
 	st	-1(%r29) %r10
 	fld	-1(%r29) %f0
 	addi	%r8 %r0 min_caml_float_int_c1
-	fld	0(%r8) %f1
+	fld	%f1 0(%r8)
 	fadd	%f0 %f0 %f1
 	# FLAG
 	beq	%r9 %r0 min_caml_float_of_int_small_positive
@@ -99,9 +99,9 @@ min_caml_float_of_int_big:
 	# r2: x, r8: |x| or n, r9: FLAG, r10: 8388608, r11: -8388608, r12: temp
 	# f0: answer, f1: 8388608.0
 	addi	%r8 %r0 min_caml_float_0
-	fld	0(%r8) %f0
+	fld	%f0 0(%r8)
 	addi	%r8 %r0 min_caml_float_int_c2
-	fld	0(%r8) %f1
+	fld	%f1 0(%r8)
 	add	%r8 %r0 %r11
 	add	%r9 %r0 %r0
 	addiu32	%r10 %r0 $8388608
@@ -119,7 +119,7 @@ min_caml_float_of_int_big_loop:
 	st	0(%r29) %r31
 	add	%r2 %r0 %r8
 	jal	min_caml_float_of_int
-	ld	0(%r29) %r31
+	ld	%r31 0(%r29)
 	addi	%r29 %r29 $3
 	fld	-2(%r29) %f1
 	ld	-1(%r29) %r2

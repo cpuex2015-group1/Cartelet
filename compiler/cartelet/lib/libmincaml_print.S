@@ -33,7 +33,7 @@ min_caml_print_int_loop:
 	addi	%r29 %r29 $-5
 	st	0(%r29) %r31
 	jal	min_caml_div10
-	ld	0(%r29) %r31
+	ld	%r31 0(%r29)
 	addi	%r29 %r29 $5
 	ld	-1(%r29) %r8
 	ld	-4(%r29) %r12	
@@ -72,7 +72,7 @@ min_caml_print_int_loop_exit:
 	addi	%r29 %r29 $-4
 	st	0(%r29) %r31
 	jal	min_caml_div10
-	ld	0(%r29) %r31
+	ld	%r31 0(%r29)
 	addi	%r29 %r29 $4
 	ld	-1(%r29) %r8
 	# multiply by 10
