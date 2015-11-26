@@ -126,31 +126,29 @@ min_caml_read_float_exit:
 	jr	%r31
 # read_int_byte (32bit, byte -> byte)
 min_caml_read_int_byte:
-	# recv8の仕様変更があるので正しく無い
 	recv8	%r2
 	slli	%r2 %r2 $8
 	recv8	%r3
-	or	%r2 %r2 %r3
+	add	%r2 %r2 %r3
 	slli	%r2 %r2 $8
 	recv8	%r3
-	or	%r2 %r2 %r3
+	add	%r2 %r2 %r3
 	slli	%r2 %r2 $8
 	recv8	%r3
-	or	%r2 %r2 %r3
+	add	%r2 %r2 %r3
 	jr	%r31
 # read_float_byte (32bit, byte -> byte)
 min_caml_read_float_byte:
-	# recv8の仕様変更があるので正しく無い
 	recv8	%r2
 	slli	%r2 %r2 $8
 	recv8	%r3
-	or	%r2 %r2 %r3
+	add	%r2 %r2 %r3
 	slli	%r2 %r2 $8
 	recv8	%r3
-	or	%r2 %r2 %r3
+	add	%r2 %r2 %r3
 	slli	%r2 %r2 $8
 	recv8	%r3
-	or	%r2 %r2 %r3
+	add	%r2 %r2 %r3
 	sw	-1(%r29) %r2
 	flw	-1(%r29) %f2
 	jr	%r31
