@@ -13,14 +13,14 @@ type let_t      = LKn of KNormal.t | LCl of Closure.t
 type ifop_t     = IoKn of KNormal.t | IoCl of Closure.t
 
 (* id_emit : Id.t -> unit *)
-(* è­˜åˆ¥å­æƒ…å ±ã‚’è¡¨ç¤ºã™ã‚‹ *)
+(* ¼±ÊÌ»Ò¾ðÊó¤òÉ½¼¨¤¹¤ë *)
 let id_emit id = Format.print_string id
 
 (* label_emit : Id.l -> unit *)
 let label_emit (Id.L l) = Format.print_string l
 
 (* type_emit : Type.t -> unit *)
-(* åž‹æƒ…å ±ã‚’1æ–‡å­—ã§è¡¨ç¤ºã™ã‚‹ *)
+(* ·¿¾ðÊó¤ò1Ê¸»ú¤ÇÉ½¼¨¤¹¤ë *)
 let rec type_emit = function
     Type.Unit    -> Format.print_string "u"
   | Type.Bool    -> Format.print_string "b"
@@ -36,7 +36,7 @@ let rec type_emit = function
 		     Format.print_string "}")
 
 (* 
- * parser_emitç”¨ã®é–¢æ•°
+ * parser_emitÍÑ¤Î´Ø¿ô
  *)
 (* id_ty_list_iter : (Id.t * Type.t) list -> unit *)
 let rec id_ty_list_iter = function
@@ -63,7 +63,7 @@ let rec id_ty_list_iter = function
 		      id_ty_list_iter l)
 
 (* 
- * parser_emité–¢ä¿‚
+ * parser_emit´Ø·¸
  *)
 (* parser_emit : out_channel -> Syntax.t -> unit *)
 (* pretty printer of Syntax.t *)
@@ -277,7 +277,7 @@ and lettuple_emit tuple t0 t1 p =
    Format.open_box 2;
    Format.print_string "LetTuple";
    Format.print_space ();
-   (* ã‚¿ãƒ—ãƒ« *)
+   (* ¥¿¥×¥ë *)
    Format.open_box 1;
    Format.print_string "(";
    id_ty_list_iter tuple;
@@ -304,7 +304,7 @@ and lettuple_emit tuple t0 t1 p =
    Format.close_box ())
 
 (*
- *  kNormal_emité–¢ä¿‚
+ *  kNormal_emit´Ø·¸
  *)
 (* kNormal_emit : out_channel -> KNormal.t -> unit *)
 and kNormal_emit oc s =
@@ -429,7 +429,7 @@ and let_emit id ty t0 t1 p =
 (* ifop_emit : string -> Id.t -> Id.t -> ifop_t -> ifop_t -> unit *)
 and ifop_emit name id0 id1 t0 t1 p =
   (Format.open_vbox 1;
-   (* è©•ä¾¡å¼ *)
+   (* É¾²Á¼° *)
    Format.open_hbox ();
    Format.print_string ("(" ^ name);
    Format.print_space ();
@@ -438,7 +438,7 @@ and ifop_emit name id0 id1 t0 t1 p =
    parser_iter (Syntax.Var (id1, p));
    Format.close_box ();
    Format.print_space ();
-   (* trueç¯€ã€falseç¯€ *)
+   (* trueÀá¡¢falseÀá *)
    (match t0 with
     | IoKn tt -> kNormal_iter tt
     | IoCl tt -> closure_iter tt);
@@ -449,7 +449,7 @@ and ifop_emit name id0 id1 t0 t1 p =
    Format.print_string ")")
 
 (*
- * closure_prog_emité–¢ä¿‚
+ * closure_prog_emit´Ø·¸
  *)
 (* closure_prog_emit : out_channel -> Closure.prog -> unit *)
 and closure_prog_emit oc (Prog (fundef_lst, s)) =
@@ -562,7 +562,7 @@ and closure_iter s =
       | Closure.AppCls (id0, id1_lst, p) ->
 	  (Format.print_string "(AppCls";
 	   Format.print_space ();
-	   (* è­˜åˆ¥å­ *)
+	   (* ¼±ÊÌ»Ò *)
 	   Format.open_box 2;
 	   Format.print_string "(Var";
 	   Format.print_space ();
@@ -570,13 +570,13 @@ and closure_iter s =
 	   Format.print_string ")";
 	   Format.close_box ();
 	   Format.print_space ();
-	   (* å¼•æ•° *)
+	   (* °ú¿ô *)
 	   parser_list_emit (List.rev_map (fun id -> Syntax.Var (id, p)) id1_lst);
 	   Format.print_string ")")
       | Closure.AppDir (label, id_lst, p) ->
 	  (Format.print_string "(AppCls";
 	   Format.print_space ();
-	   (* è­˜åˆ¥å­ *)
+	   (* ¼±ÊÌ»Ò *)
 	   Format.open_box 2;
 	   Format.print_string "(Var";
 	   Format.print_space ();
@@ -584,7 +584,7 @@ and closure_iter s =
 	   Format.print_string ")";
 	   Format.close_box ();
 	   Format.print_space ();
-	   (* å¼•æ•° *)
+	   (* °ú¿ô *)
 	   parser_list_emit (List.rev_map (fun id -> Syntax.Var (id, p)) id_lst);
 	   Format.print_string ")")
       | Closure.Tuple (tuple, p) -> kNormal_iter (KNormal.Tuple (tuple, p))
@@ -627,9 +627,9 @@ and id_list_iter = function
 		id_list_iter l)
 
 (* 
- * main.mlç”¨ã®æƒ…å ±
+ * main.mlÍÑ¤Î¾ðÊó
  *)
-type level = (* ã©ã®æ®µéšŽã§ãƒ‡ãƒãƒƒã‚°å‡ºåŠ›ã™ã‚‹ã‹ã‚’ç®¡ç†ã™ã‚‹åž‹ *)
+type level = (* ¤É¤ÎÃÊ³¬¤Ç¥Ç¥Ð¥Ã¥°½ÐÎÏ¤¹¤ë¤«¤ò´ÉÍý¤¹¤ë·¿ *)
   | Parser
   | Typing
   | KNormal
@@ -642,7 +642,7 @@ type level = (* ã©ã®æ®µéšŽã§ãƒ‡ãƒãƒƒã‚°å‡ºåŠ›ã™ã‚‹ã‹ã‚’ç®¡ç†ã™ã‚‹åž‹ *)
   | Emit
 
 (* level_of_string : string -> Debug.level *)
-(* è¦å®šå¤–ãªã‚‰(ä¾‹å¤–ã‚’å‡ºã™ã®ã§ã¯ãªã)Emitæ‰±ã„ã«ã™ã‚‹ *)
+(* µ¬Äê³°¤Ê¤é(Îã³°¤ò½Ð¤¹¤Î¤Ç¤Ï¤Ê¤¯)Emit°·¤¤¤Ë¤¹¤ë *)
 let level_of_string = function
     "Parser"   -> Parser
   | "Typing"   -> Typing

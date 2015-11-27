@@ -1,6 +1,6 @@
 (* give names to intermediate values (K-normalization) *)
 
-type t = (* KÀµµ¬²½¸å¤Î¼° (caml2html: knormal_t) *)
+type t = (* Kæ­£è¦åŒ–å¾Œã®å¼ (caml2html: knormal_t) *)
   | Unit of Lexing.position
   | Int of int * Lexing.position
   | Float of float * Lexing.position
@@ -14,8 +14,8 @@ type t = (* KÀµµ¬²½¸å¤Î¼° (caml2html: knormal_t) *)
   | FSub of Id.t * Id.t * Lexing.position
   | FMul of Id.t * Id.t * Lexing.position
   | FDiv of Id.t * Id.t * Lexing.position
-  | IfEq of Id.t * Id.t * t * t  * Lexing.position(* Èæ³Ó + Ê¬´ô (caml2html: knormal_branch) *)
-  | IfLE of Id.t * Id.t * t * t  * Lexing.position(* Èæ³Ó + Ê¬´ô *)
+  | IfEq of Id.t * Id.t * t * t  * Lexing.position(* æ¯”è¼ƒ + åˆ†å² (caml2html: knormal_branch) *)
+  | IfLE of Id.t * Id.t * t * t  * Lexing.position(* æ¯”è¼ƒ + åˆ†å² *)
   | Let of (Id.t * Type.t) * t * t * Lexing.position
   | Var of Id.t * Lexing.position
   | LetRec of fundef * t * Lexing.position
@@ -28,7 +28,7 @@ type t = (* KÀµµ¬²½¸å¤Î¼° (caml2html: knormal_t) *)
   | ExtFunApp of Id.t * Id.t list * Lexing.position
 and fundef = { name : Id.t * Type.t; args : (Id.t * Type.t) list; body : t }
 
-let pos_of_exp = function (* KNormal.t¤«¤éLexing.position¤À¤±È´¤­½Ð¤¹ *)
+let pos_of_exp = function (* KNormal.tã‹ã‚‰Lexing.positionã ã‘æŠœãå‡ºã™ *)
     Unit p
   | Int (_, p) | Float (_, p)
   | Neg (_, p) | Add (_, _, p) | Sub (_, _, p) | Mul(_, _, p) | Div(_, _, p)
@@ -39,7 +39,7 @@ let pos_of_exp = function (* KNormal.t¤«¤éLexing.position¤À¤±È´¤­½Ð¤¹ *)
   | Get (_, _, p) | Put (_, _, _, p) 
   | ExtArray (_, p) | ExtFunApp (_, _, p) -> p
 
-let rec fv = function (* ¼°¤Ë½Ð¸½¤¹¤ë¡Ê¼«Í³¤Ê¡ËÊÑ¿ô (caml2html: knormal_fv) *)
+let rec fv = function (* å¼ã«å‡ºç¾ã™ã‚‹ï¼ˆè‡ªç”±ãªï¼‰å¤‰æ•° (caml2html: knormal_fv) *)
   | Unit _ | Int _ | Float _ | ExtArray _ -> S.empty
   | Neg(x, _) | FNeg(x, _) -> S.singleton x
   | Add(x, y, _) | Sub(x, y, _) | Mul(x, y, _) | Div(x, y, _) | FAdd(x, y, _) | FSub(x, y, _) | FMul(x, y, _) | FDiv(x, y, _) | Get(x, y, _) -> S.of_list [x; y]
@@ -54,7 +54,7 @@ let rec fv = function (* ¼°¤Ë½Ð¸½¤¹¤ë¡Ê¼«Í³¤Ê¡ËÊÑ¿ô (caml2html: knormal_fv) *)
   | Put(x, y, z, _) -> S.of_list [x; y; z]
   | LetTuple(xs, y, e, _) -> S.add y (S.diff (fv e) (S.of_list (List.map fst xs)))
 
-let insert_let (e, t) k = (* let¤òÁÞÆþ¤¹¤ëÊä½õ´Ø¿ô (caml2html: knormal_insert) *)
+let insert_let (e, t) k = (* letã‚’æŒ¿å…¥ã™ã‚‹è£œåŠ©é–¢æ•° (caml2html: knormal_insert) *)
   match e with
   | Var(x, _) -> k x
   | _ ->
@@ -63,16 +63,16 @@ let insert_let (e, t) k = (* let¤òÁÞÆþ¤¹¤ëÊä½õ´Ø¿ô (caml2html: knormal_insert) *
       let p = pos_of_exp e in
       Let((x, t), e, e', p), t'
 
-let rec g env = function (* KÀµµ¬²½¥ë¡¼¥Á¥óËÜÂÎ (caml2html: knormal_g) *)
+let rec g env = function (* Kæ­£è¦åŒ–ãƒ«ãƒ¼ãƒãƒ³æœ¬ä½“ (caml2html: knormal_g) *)
   | Syntax.Unit(p) -> Unit(p), Type.Unit
-  | Syntax.Bool(b, p) -> Int((if b then 1 else 0), p), Type.Int (* ÏÀÍýÃÍtrue, false¤òÀ°¿ô1, 0¤ËÊÑ´¹ (caml2html: knormal_bool) *)
+  | Syntax.Bool(b, p) -> Int((if b then 1 else 0), p), Type.Int (* è«–ç†å€¤true, falseã‚’æ•´æ•°1, 0ã«å¤‰æ› (caml2html: knormal_bool) *)
   | Syntax.Int(i, p) -> Int(i, p), Type.Int
   | Syntax.Float(d, p) -> Float(d, p), Type.Float
   | Syntax.Not(e, p) -> g env (Syntax.If(e, Syntax.Bool(false, p), Syntax.Bool(true, p), p))
   | Syntax.Neg(e, p) ->
       insert_let (g env e)
 	(fun x -> Neg(x, p), Type.Int)
-  | Syntax.Add(e1, e2, p) -> (* Â­¤·»»¤ÎKÀµµ¬²½ (caml2html: knormal_add) *)
+  | Syntax.Add(e1, e2, p) -> (* è¶³ã—ç®—ã®Kæ­£è¦åŒ– (caml2html: knormal_add) *)
       insert_let (g env e1)
 	(fun x -> insert_let (g env e2)
 	    (fun y -> Add(x, y, p), Type.Int))
@@ -109,7 +109,7 @@ let rec g env = function (* KÀµµ¬²½¥ë¡¼¥Á¥óËÜÂÎ (caml2html: knormal_g) *)
 	    (fun y -> FDiv(x, y, p), Type.Float))
   | Syntax.Eq(_, _, p) | Syntax.LE(_, _, p) as cmp ->
       g env (Syntax.If(cmp, Syntax.Bool(true, p), Syntax.Bool(false, p), p))
-  | Syntax.If(Syntax.Not(e1, p1), e2, e3, p2) -> g env (Syntax.If(e1, e3, e2, p2)) (* not¤Ë¤è¤ëÊ¬´ô¤òÊÑ´¹ (caml2html: knormal_not) *)
+  | Syntax.If(Syntax.Not(e1, p1), e2, e3, p2) -> g env (Syntax.If(e1, e3, e2, p2)) (* notã«ã‚ˆã‚‹åˆ†å²ã‚’å¤‰æ› (caml2html: knormal_not) *)
   | Syntax.If(Syntax.Eq(e1, e2, p1), e3, e4, p2) ->
       insert_let (g env e1)
 	(fun x -> insert_let (g env e2)
@@ -124,13 +124,13 @@ let rec g env = function (* KÀµµ¬²½¥ë¡¼¥Á¥óËÜÂÎ (caml2html: knormal_g) *)
 	      let e3', t3 = g env e3 in
 	      let e4', t4 = g env e4 in
 	      IfLE(x, y, e3', e4', p2), t3))
-  | Syntax.If(e1, e2, e3, p) -> g env (Syntax.If(Syntax.Eq(e1, Syntax.Bool(false, p), p), e3, e2, p)) (* Èæ³Ó¤Î¤Ê¤¤Ê¬´ô¤òÊÑ´¹ (caml2html: knormal_if) *)
+  | Syntax.If(e1, e2, e3, p) -> g env (Syntax.If(Syntax.Eq(e1, Syntax.Bool(false, p), p), e3, e2, p)) (* æ¯”è¼ƒã®ãªã„åˆ†å²ã‚’å¤‰æ› (caml2html: knormal_if) *)
   | Syntax.Let((x, t), e1, e2, p) ->
       let e1', t1 = g env e1 in
       let e2', t2 = g (M.add x t env) e2 in
       Let((x, t), e1', e2', p), t2
   | Syntax.Var(x, p) when M.mem x env -> Var(x, p), M.find x env
-  | Syntax.Var(x, p) -> (* ³°ÉôÇÛÎó¤Î»²¾È (caml2html: knormal_extarray) *)
+  | Syntax.Var(x, p) -> (* å¤–éƒ¨é…åˆ—ã®å‚ç…§ (caml2html: knormal_extarray) *)
       (match M.find x !Typing.extenv with
       | Type.Array(_) as t -> ExtArray (x, p), t
       | _ -> failwith (Printf.sprintf "external variable %s does not have an array type" x))
@@ -139,7 +139,7 @@ let rec g env = function (* KÀµµ¬²½¥ë¡¼¥Á¥óËÜÂÎ (caml2html: knormal_g) *)
       let e2', t2 = g env' e2 in
       let e1', t1 = g (M.add_list yts env') e1 in
       LetRec({ name = (x, t); args = yts; body = e1' }, e2', p), t2
-  | Syntax.App(Syntax.Var(f, p1), e2s, p2) when not (M.mem f env) -> (* ³°Éô´Ø¿ô¤Î¸Æ¤Ó½Ð¤· (caml2html: knormal_extfunapp) *)
+  | Syntax.App(Syntax.Var(f, p1), e2s, p2) when not (M.mem f env) -> (* å¤–éƒ¨é–¢æ•°ã®å‘¼ã³å‡ºã— (caml2html: knormal_extfunapp) *)
       (match M.find f !Typing.extenv with
       | Type.Fun(_, t) ->
 	  let rec bind xs = function (* "xs" are identifiers for the arguments *)

@@ -4,7 +4,7 @@ open KNormal
 
 let find x env = try M.find x env with Not_found -> x
 
-let rec g env = function (* ¦ÁÊÑ´¹¥ë¡¼¥Á¥óËÜÂÎ (caml2html: alpha_g) *)
+let rec g env = function (* Î±å¤‰æ›ãƒ«ãƒ¼ãƒãƒ³æœ¬ä½“ (caml2html: alpha_g) *)
   | Unit(p) -> Unit(p)
   | Int(i, p) -> Int(i, p)
   | Float(d, p) -> Float(d, p)
@@ -20,11 +20,11 @@ let rec g env = function (* ¦ÁÊÑ´¹¥ë¡¼¥Á¥óËÜÂÎ (caml2html: alpha_g) *)
   | FDiv(x, y, p) -> FDiv(find x env, find y env, p)
   | IfEq(x, y, e1, e2, p) -> IfEq(find x env, find y env, g env e1, g env e2, p)
   | IfLE(x, y, e1, e2, p) -> IfLE(find x env, find y env, g env e1, g env e2, p)
-  | Let((x, t), e1, e2, p) -> (* let¤Î¦ÁÊÑ´¹ (caml2html: alpha_let) *)
+  | Let((x, t), e1, e2, p) -> (* letã®Î±å¤‰æ› (caml2html: alpha_let) *)
       let x' = Id.genid x in
       Let((x', t), g env e1, g (M.add x x' env) e2, p)
   | Var(x, p) -> Var(find x env, p)
-  | LetRec({ name = (x, t); args = yts; body = e1 }, e2, p) -> (* let rec¤Î¦ÁÊÑ´¹ (caml2html: alpha_letrec) *)
+  | LetRec({ name = (x, t); args = yts; body = e1 }, e2, p) -> (* let recã®Î±å¤‰æ› (caml2html: alpha_letrec) *)
       let env = M.add x (Id.genid x) env in
       let ys = List.map fst yts in
       let env' = M.add_list2 ys (List.map Id.genid ys) env in
@@ -34,7 +34,7 @@ let rec g env = function (* ¦ÁÊÑ´¹¥ë¡¼¥Á¥óËÜÂÎ (caml2html: alpha_g) *)
 	     g env e2, p)
   | App(x, ys, p) -> App(find x env, List.map (fun y -> find y env) ys, p)
   | Tuple(xs, p) -> Tuple(List.map (fun x -> find x env) xs, p)
-  | LetTuple(xts, y, e, p) -> (* LetTuple¤Î¦ÁÊÑ´¹ (caml2html: alpha_lettuple) *)
+  | LetTuple(xts, y, e, p) -> (* LetTupleã®Î±å¤‰æ› (caml2html: alpha_lettuple) *)
       let xs = List.map fst xts in
       let env' = M.add_list2 xs (List.map Id.genid xs) env in
       LetTuple(List.map (fun (x, t) -> (find x env', t)) xts,

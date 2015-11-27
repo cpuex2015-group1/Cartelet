@@ -1,21 +1,21 @@
 open KNormal
 
-let rec effect = function (* ÉûºîÍÑ¤ÎÍ­Ìµ (caml2html: elim_effect) *)
+let rec effect = function (* å‰¯ä½œç”¨ã®æœ‰ç„¡ (caml2html: elim_effect) *)
   | Let(_, e1, e2, _) | IfEq(_, _, e1, e2, _) | IfLE(_, _, e1, e2, _) -> effect e1 || effect e2
   | LetRec(_, e, _) | LetTuple(_, _, e, _) -> effect e
   | App _ | Put _ | ExtFunApp _ -> true
   | _ -> false
 
-let rec f = function (* ÉÔÍ×ÄêµÁºï½ü¥ë¡¼¥Á¥óËÜÂÎ (caml2html: elim_f) *)
+let rec f = function (* ä¸è¦å®šç¾©å‰Šé™¤ãƒ«ãƒ¼ãƒãƒ³æœ¬ä½“ (caml2html: elim_f) *)
   | IfEq(x, y, e1, e2, p) -> IfEq(x, y, f e1, f e2, p)
   | IfLE(x, y, e1, e2, p) -> IfLE(x, y, f e1, f e2, p)
-  | Let((x, t), e1, e2, p) -> (* let¤Î¾ì¹ç (caml2html: elim_let) *)
+  | Let((x, t), e1, e2, p) -> (* letã®å ´åˆ (caml2html: elim_let) *)
       let e1' = f e1 in
       let e2' = f e2 in
       if effect e1' || S.mem x (fv e2') then Let((x, t), e1', e2', p) else
       (Format.eprintf "eliminating variable %s@." x;
        e2')
-  | LetRec({ name = (x, t); args = yts; body = e1 }, e2, p) -> (* let rec¤Î¾ì¹ç (caml2html: elim_letrec) *)
+  | LetRec({ name = (x, t); args = yts; body = e1 }, e2, p) -> (* let recã®å ´åˆ (caml2html: elim_letrec) *)
       let e2' = f e2 in
       if S.mem x (fv e2') then
 	LetRec({ name = (x, t); args = yts; body = f e1 }, e2', p)

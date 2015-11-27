@@ -2,14 +2,14 @@ let limit = ref 1000
 let debug_level = ref Debug.Emit
 let server_mode = ref false
 
-let rec iter n e = (* ºÇÅ¬²½½èÍı¤ò¤¯¤ê¤«¤¨¤¹ (caml2html: main_iter) *)
+let rec iter n e = (* æœ€é©åŒ–å‡¦ç†ã‚’ãã‚Šã‹ãˆã™ (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
   if n = 0 then e else
   let e' = Elim.f (ConstFold.f (Inline.f (Assoc.f (Beta.f e)))) in
   if e = e' then e else
   iter (n - 1) e'
 
-let lexbuf outchan l = (* ¥Ğ¥Ã¥Õ¥¡¤ò¥³¥ó¥Ñ¥¤¥ëorÅÓÃæ¤Ş¤ÇÊÑ´¹¤·¤Æ¥Á¥ã¥ó¥Í¥ë¤Ø½ĞÎÏ¤¹¤ë *)
+let lexbuf outchan l = (* ãƒãƒƒãƒ•ã‚¡ã‚’ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«oré€”ä¸­ã¾ã§å¤‰æ›ã—ã¦ãƒãƒ£ãƒ³ãƒãƒ«ã¸å‡ºåŠ›ã™ã‚‹ *)
   Id.counter := 0;
   Typing.extenv := M.empty;
   try
@@ -89,7 +89,7 @@ let lexbuf outchan l = (* ¥Ğ¥Ã¥Õ¥¡¤ò¥³¥ó¥Ñ¥¤¥ëorÅÓÃæ¤Ş¤ÇÊÑ´¹¤·¤Æ¥Á¥ã¥ó¥Í¥ë¤Ø½ĞÎÏ
        Debug.parser_emit stderr e;
        failwith "Type mismatch")
 
-let string s = lexbuf stdout (Lexing.from_string s) (* Ê¸»úÎó¤ò¥³¥ó¥Ñ¥¤¥ë¤·¤ÆÉ¸½à½ĞÎÏ¤ËÉ½¼¨¤¹¤ë (caml2html: main_string) *)
+let string s = lexbuf stdout (Lexing.from_string s) (* æ–‡å­—åˆ—ã‚’ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã—ã¦æ¨™æº–å‡ºåŠ›ã«è¡¨ç¤ºã™ã‚‹ (caml2html: main_string) *)
 
 (* cat : in_channel -> out_channel -> unit *)
 let cat ic oc =
@@ -113,7 +113,7 @@ let catlib lib oc =
     close_in libchan
   with e -> (close_in libchan; raise e)
 
-let file f = (* ¥Õ¥¡¥¤¥ë¤ò¥³¥ó¥Ñ¥¤¥ë¤·¤Æ¥Õ¥¡¥¤¥ë¤Ë½ĞÎÏ¤¹¤ë (caml2html: main_file) *)
+let file f = (* ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã—ã¦ãƒ•ã‚¡ã‚¤ãƒ«ã«å‡ºåŠ›ã™ã‚‹ (caml2html: main_file) *)
   let inchan = open_in (f ^ ".ml") in
   let outchan = (match !debug_level with
 		 | Debug.Emit -> open_out (f ^ ".s")
@@ -122,7 +122,7 @@ let file f = (* ¥Õ¥¡¥¤¥ë¤ò¥³¥ó¥Ñ¥¤¥ë¤·¤Æ¥Õ¥¡¥¤¥ë¤Ë½ĞÎÏ¤¹¤ë (caml2html: main_file
   try
     lexbuf outchan (Lexing.from_channel inchan);
     (if !debug_level = Debug.Emit then
-       (* ËÜÅö¤Ï¥ê¥ó¥«¤¬¤¹¤Ù¤­»Å»ö *)
+       (* æœ¬å½“ã¯ãƒªãƒ³ã‚«ãŒã™ã¹ãä»•äº‹ *)
        (output_string outchan "\n# Library Begin\n";
 	cat libchan outchan;
 	catlib "lib/libmincaml_create_array.S" outchan;
@@ -145,7 +145,7 @@ let file f = (* ¥Õ¥¡¥¤¥ë¤ò¥³¥ó¥Ñ¥¤¥ë¤·¤Æ¥Õ¥¡¥¤¥ë¤Ë½ĞÎÏ¤¹¤ë (caml2html: main_file
     close_in libchan;
   with e -> (close_in inchan; close_out outchan; close_in libchan; raise e)
 
-let () = (* ¤³¤³¤«¤é¥³¥ó¥Ñ¥¤¥é¤Î¼Â¹Ô¤¬³«»Ï¤µ¤ì¤ë (caml2html: main_entry) *)
+let () = (* ã“ã“ã‹ã‚‰ã‚³ãƒ³ãƒ‘ã‚¤ãƒ©ã®å®Ÿè¡ŒãŒé–‹å§‹ã•ã‚Œã‚‹ (caml2html: main_entry) *)
   let files = ref [] in
   Arg.parse
     [("-inline", Arg.Set_int(Inline.threshold), "maximum size of functions inlined");

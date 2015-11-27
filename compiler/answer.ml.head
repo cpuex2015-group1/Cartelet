@@ -1,4 +1,4 @@
-(* ocamlã®Pervasives.int_of_floatã¨CPUå®Ÿé¨“ã®float_spec.pdfã«å¾“ã£ãŸint_of_floatã¯ç•°ãªã‚‹ã®ã§å†å®šç¾©ã™ã‚‹ *)
+(* ocaml¤ÎPervasives.int_of_float¤ÈCPU¼Â¸³¤Îfloat_spec.pdf¤Ë½¾¤Ã¤¿int_of_float¤Ï°Û¤Ê¤ë¤Î¤ÇºÆÄêµÁ¤¹¤ë *)
 let int_of_float x =
   if x>=0.0 then int_of_float (x+.0.5) else int_of_float (x-.0.5) in
 let truncate x = int_of_float x in

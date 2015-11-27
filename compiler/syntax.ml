@@ -1,4 +1,4 @@
-type t = (* MinCaml¤Î¹½Ê¸¤òÉ½¸½¤¹¤ë¥Ç¡¼¥¿·¿ (caml2html: syntax_t) *)
+type t = (* MinCamlã®æ§‹æ–‡ã‚’è¡¨ç¾ã™ã‚‹ãƒ‡ãƒ¼ã‚¿å‹ (caml2html: syntax_t) *)
   | Unit of Lexing.position
   | Bool of bool * Lexing.position
   | Int of int * Lexing.position
