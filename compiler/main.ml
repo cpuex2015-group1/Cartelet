@@ -13,73 +13,35 @@ let lexbuf outchan l = (* バッファをコンパイルor途中まで変換し�
   Id.counter := 0;
   Typing.extenv := M.empty;
   try
-   (match !debug_level with
-    | Debug.Parser ->
-       Debug.parser_emit outchan (Parser.exp Lexer.token l)
-    | Debug.Typing ->
-       Debug.parser_emit outchan (Typing.f (Parser.exp Lexer.token l))
-    | Debug.KNormal ->
-       Debug.kNormal_emit outchan (KNormal.f (Typing.f (Parser.exp Lexer.token l)))
-    | Debug.Alpha ->
-       Debug.kNormal_emit outchan (Alpha.f
-				     (KNormal.f
-					(Typing.f (Parser.exp Lexer.token l))))
-    | Debug.Iter ->
-       Debug.kNormal_emit outchan
-			  (iter !limit
-				(Alpha.f
-				   (KNormal.f
-				      (Typing.f (Parser.exp Lexer.token l)))))
-    | Debug.Closure ->
-       Debug.closure_prog_emit
-	 outchan
-	 (Closure.f
-	    (iter !limit
-		  (Alpha.f
-		     (KNormal.f
-			(Typing.f (Parser.exp Lexer.token l))))))
-    | Debug.Virtual ->
-       DebugAsm.asm_prog_emit
-	 outchan
-	 (Virtual.f
-	    (Closure.f
-	       (iter !limit
-		     (Alpha.f
-			(KNormal.f
-			   (Typing.f (Parser.exp Lexer.token l)))))))
-    | Debug.Simm ->
-       DebugAsm.asm_prog_emit
-	 outchan
-	 (Simm.f
-	    (Virtual.f
-	       (Closure.f
-		  (iter !limit
-			(Alpha.f
-			   (KNormal.f
-			      (Typing.f (Parser.exp Lexer.token l))))))))
-    | Debug.RegAlloc ->
-       DebugAsm.asm_prog_emit
-	 outchan
-	 (RegAlloc.f
-	    (Simm.f
-	       (Virtual.f
-		  (Closure.f
-		     (iter !limit
-			   (Alpha.f
-			      (KNormal.f
-				 (Typing.f (Parser.exp Lexer.token l)))))))))
-    | Debug.Emit ->
-       Emit.f outchan
-	      (RegAlloc.f
-		 (Simm.f
-		    (Virtual.f
-		       (Closure.f
-			  (iter !limit
-				(Alpha.f
-				   (KNormal.f
-				      (Typing.f
-					 (Parser.exp Lexer.token l)))))))))
-   );
+    let d = Parser.exp Lexer.token l in
+    if !debug_level = Debug.Parser then Debug.parser_emit outchan d
+    else
+      let d = Typing.f d in
+      if !debug_level = Debug.Typing then Debug.parser_emit outchan d
+      else
+	let d = KNormal.f d in
+	if !debug_level = Debug.KNormal then Debug.kNormal_emit outchan d
+	else
+	  let d = Alpha.f d in
+	  if !debug_level = Debug.Alpha then Debug.kNormal_emit outchan d
+	  else
+	    let d = iter !limit d in
+	    if !debug_level = Debug.Iter then Debug.kNormal_emit outchan d
+	    else
+	      let d = Closure.f d in
+	      if !debug_level = Debug.Closure then Debug.closure_prog_emit outchan d
+	      else
+		let d = Virtual.f d in
+		if !debug_level = Debug.Virtual then DebugAsm.asm_prog_emit outchan d
+		else
+		  let d = Simm.f d in
+		  if !debug_level = Debug.Simm then DebugAsm.asm_prog_emit outchan d
+		  else
+		    let d = RegAlloc.f d in
+		    if !debug_level = Debug.RegAlloc then DebugAsm.asm_prog_emit outchan d
+		    else
+		      (assert(!debug_level = Debug.Emit);
+		       Emit.f outchan d)
   with
     Typing.Error(e, ty1, ty2, p) ->
       (Format.eprintf "Error: This expression at %d has type %s but an expression was expected type %s\n\t@."
