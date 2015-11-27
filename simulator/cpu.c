@@ -159,7 +159,7 @@ void exec_inst(uint32_t inst)
       printf("lw : r%d <- mem[r%d + %d]\n",r1,r2,imm);
     }
     pc++;
-    ld_count++;
+    lw_count++;
     break;
   case OP_SW:
     sram[gpr[r1]+imm]=gpr[r2];
@@ -167,7 +167,7 @@ void exec_inst(uint32_t inst)
       printf("sw : mem[r%d + %d] <- r%d\n",r1,imm,r2);
     }
     pc++;
-    st_count++;
+    sw_count++;
     break;
   case OP_SEND:
     if (send8flag) {

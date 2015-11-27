@@ -48,6 +48,8 @@ long long int fneg_count=0;
 long long int fabs_count=0;
 long long int fbcnd_count=0;
 
+long long int inst_count=0;
+
 
 int nop_bp=0;
 int send8_bp=0;
