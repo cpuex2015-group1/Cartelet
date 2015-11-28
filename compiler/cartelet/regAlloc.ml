@@ -48,8 +48,8 @@ and source' t = function
     FMov(x, _) | FNeg(x, _) | FSub(x, _, _) | FDiv(x, _, _) |
     FInv(x, _) | FSqrt(x, _) | FAbs(x, _) |
     Send(x, _) -> [x]
-  | Add(x, V y, _) | Mul(x, V y, _) -> [x; y]
-  | FAdd(x, y, _) | FMul(x, y, _) -> assert false
+  | Add(x, V y, _) | FAdd(x, y, _) | FMul(x, y, _) -> [x; y]
+  | Mul(x, V y, _) -> assert false
   | IfEq(_, _, e1, e2, _) | IfLE(_, _, e1, e2, _) | IfGE(_, _, e1, e2, _)
   | IfFEq(_, _, e1, e2, _) | IfFLE(_, _, e1, e2, _) ->
       source t e1 @ source t e2
