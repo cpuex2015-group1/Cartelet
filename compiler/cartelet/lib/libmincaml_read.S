@@ -116,9 +116,7 @@ min_caml_read_float_loop4:
 	beq	%r0 %r0 min_caml_read_float_loop4
 min_caml_read_float_loop4_exit:
 	# 符号の兼ね合いを見つつ整数部分と小数点以下の部分を足す
-	addi	%r8 %r0 min_caml_float_0
-	flw	%f4 0(%r8)
-	fble	%f4 %f3 min_caml_read_float_loop_exit_positive
+	fble	%f0 %f3 min_caml_read_float_loop_exit_positive
 	fneg	%f2 %f2
 min_caml_read_float_loop_exit_positive:
 	fadd	%f2 %f2 %f3

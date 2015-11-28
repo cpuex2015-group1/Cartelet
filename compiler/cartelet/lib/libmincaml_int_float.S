@@ -91,8 +91,7 @@ min_caml_float_of_int_big:
 	# x = m*8388608 + nとしてfloat_of_int(8388608)*m+float_of_int(n)を求める
 	# r2: x, r8: |x| or n, r9: FLAG, r10: 8388608, r11: -8388608, r12: temp
 	# f2: answer, f3: 8388608.0
-	addi	%r8 %r0 min_caml_float_0
-	flw	%f2 0(%r8)
+	fmov	%f2 %f0
 	addi	%r8 %r0 min_caml_float_int_c2
 	flw	%f3 0(%r8)
 	add	%r8 %r0 %r11

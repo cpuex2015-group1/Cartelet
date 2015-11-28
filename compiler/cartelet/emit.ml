@@ -400,7 +400,6 @@ let f oc (Prog(data, fundefs, e)) =
 	     ("min_caml_pi",            "0x40490fdb");
 	     ("min_caml_half_pi",       "0x3fc90fdb");
 	     ("min_caml_quarter_pi",    "0x3f490fdb");
-	     ("min_caml_float_0",       "0x00000000");
 	     ("min_caml_float_1",       "0x3f800000");
 	     ("min_caml_float_2",       "0x40000000");
 	     ("min_caml_float_minus_1", "0xbf800000");
