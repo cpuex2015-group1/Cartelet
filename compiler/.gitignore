@@ -25,10 +25,6 @@
 *.bin
 *.out
 
-# MinCaml Output
-*.cat.ml
-*.cat.s
-
 # Project-specific generated files
 /lexer.ml
 /parser.ml
@@ -67,11 +63,10 @@
 !/cartelet/lib/test/*.c
 !/cartelet/lib/test/*.plt
 !/cartelet/lib/test/*.log
-/carteletV1/lib/test/*
-!/carteletV1/lib/test/*.s
-!/carteletV1/lib/test/*.c
-!/carteletV1/lib/test/*.plt
-!/carteletV1/lib/test/*.log
+
+# MinCaml Output
+*.cat.ml
+*.cat.s
 
 # Backup files
 *~
