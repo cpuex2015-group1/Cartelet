@@ -299,7 +299,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      else if List.mem a allfregs && a <> freg_rv then
        emit_2 oc "fmov" a freg_rv p
      else
-       assert (a = reg_rv || a = freg_rv)
+       assert (a = "%unit" || a = reg_rv || a = freg_rv)
   | NonTail(a), CallDir(Id.L(x), ys, zs, p) ->
      (match x with
       | "min_caml_fabs" | "min_caml_abs_float" ->
