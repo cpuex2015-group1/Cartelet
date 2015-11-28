@@ -53,6 +53,7 @@ and source' t = function
   | IfEq(_, _, e1, e2, _) | IfLE(_, _, e1, e2, _) | IfGE(_, _, e1, e2, _)
   | IfFEq(_, _, e1, e2, _) | IfFLE(_, _, e1, e2, _) ->
       source t e1 @ source t e2
+  (* send無くて大丈夫? *)
   | CallCls _ | CallDir _ ->
       (match t with
 	 Type.Unit -> []
@@ -68,10 +69,10 @@ let rec alloc cont regenv x t prefer =
   assert (not (M.mem x regenv));
   let all =
     match t with
-    | Type.Unit -> ["%r0"] (* dummy *)
+    | Type.Unit -> [] (* dummy *)
     | Type.Float -> allfregs
     | _ -> allregs in
-  if all = ["%r0"] then Alloc("%r0") else (* [XX] ad hoc optimization *)
+  if all = [] then Alloc("%unit") else (* [XX] ad hoc optimization *)
   if is_reg x then Alloc(x) else
   let free = fv cont in
   try

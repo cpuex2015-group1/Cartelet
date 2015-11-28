@@ -311,20 +311,23 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
       | "min_caml_read_float" when !server_mode ->
 	 g' oc (NonTail(a), CallDir(Id.L("min_caml_read_float_byte"), ys, zs, p))
       | _ ->
-	 (g'_args oc [] ys zs p;
-	  let ss = stacksize () in
-	  assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
-	  emit_3 oc "addi" reg_sp reg_sp (string_of_int (-(ss+1))) p;
-	  emit_st oc "sw" 0 reg_sp reg_ra p;
-	  emit_1 oc "jal" x p;
-	  emit_ld oc "lw" reg_ra 0 reg_sp p;
-	  emit_3 oc "addi" reg_sp reg_sp (string_of_int (ss+1)) p;
-	  if List.mem a allregs && a <> reg_rv then
-	    emit_3 oc "addi" a reg_rv "0" p
-	  else if List.mem a allfregs && a <> freg_rv then
-	    emit_2 oc "fmov" a freg_rv p
-	  else
-	    assert(a = reg_rv || a = freg_rv)))
+	 begin
+	   g'_args oc [] ys zs p;
+	   let ss = stacksize () in
+	   assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
+	   emit_3 oc "addi" reg_sp reg_sp (string_of_int (-(ss+1))) p;
+	   emit_st oc "sw" 0 reg_sp reg_ra p;
+	   emit_1 oc "jal" x p;
+	   emit_ld oc "lw" reg_ra 0 reg_sp p;
+	   emit_3 oc "addi" reg_sp reg_sp (string_of_int (ss+1)) p;
+	   if List.mem a allregs && a <> reg_rv then
+	     emit_3 oc "addi" a reg_rv "0" p
+	   else if List.mem a allfregs && a <> freg_rv then
+	     emit_2 oc "fmov" a freg_rv p
+	   else
+	     (* %unitはregAlloc.mlで生まれる *)
+	      assert(a = "%unit" || a = reg_rv || a = freg_rv)
+	 end)
 and g'_tail_if oc e1 e2 b reg1 reg2 p =
   let b_true = Id.genid b in
   emit_3 oc b reg1 reg2 b_true p;
