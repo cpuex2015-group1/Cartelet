@@ -83,6 +83,8 @@ extern long long int fsqrt_count;
 extern long long int fneg_count;
 extern long long int fabs_count;
 extern long long int fbcnd_count;
+extern long long int flw_count;
+extern long long int fsw_count;
 
 extern int nop_bp;
 extern int send8_bp;
