@@ -132,7 +132,7 @@ void exec_inst(uint32_t inst)
       printf("srai : r%d <- r%d >>> r%d\n",r1,r2,imm);
     }
     pc++;
-    srl_count++;
+    srai_count++;
     break;
   case OP_BCND:
     pc++;
