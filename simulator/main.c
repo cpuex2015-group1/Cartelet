@@ -47,6 +47,8 @@ long long int fsqrt_count=0;
 long long int fneg_count=0;
 long long int fabs_count=0;
 long long int fbcnd_count=0;
+long long int flw_count=0;
+long long int fsw_count=0;
 
 long long int inst_count=0;
 
@@ -132,6 +134,8 @@ void print_statistics()
   printf("fneg  : %lld\n",fneg_count);
   printf("fabs  : %lld\n",fabs_count);
   printf("fbcnd : %lld\n",fbcnd_count);
+  printf("flw   : %lld\n",flw_count);
+  printf("fsw   : %lld\n",fsw_count);
   printf("---total : %lld---\n",inst_count);
 }
 

@@ -283,6 +283,22 @@ void exec_inst(uint32_t inst)
     pc++;
     fbcnd_count++;
     break;
+  case OP_FLW:
+    fpr[r1].i=sram[gpr[r2]+imm];
+    if (!noprintflag) {
+      printf("fld : f%d <- mem[r%d + %d]\n",r1,r2,imm);
+    }
+    pc++;
+    flw_count++;
+    break;
+  case OP_FSW:
+    sram[gpr[r1]+imm]=fpr[r2].i;
+    if (!noprintflag) {
+      printf("fst : mem[r%d + %d] <- f%d\n",r1,imm,r2);
+    }
+    pc++;
+    fsw_count++;
+    break;
   default:
     printf("Unknown instruction\n");
     pc++;

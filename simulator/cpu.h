@@ -30,6 +30,8 @@
 #define OP_FNEG
 #define OP_FABS
 #define OP_FBCND
+#define OP_FLW
+#define OP_FSW
 
 
 #define HALT (OP_HALT<<26)
