@@ -17,6 +17,7 @@ int noprintflag=0;
 int binflag=0;
 int hexflag=0;
 int x86flag=0;
+int displayflag=0;
 int breakpoint[BRAM_NUM]={};
 int gdisp[GPR_NUM]={};
 int fdisp[FPR_NUM]={};
@@ -288,6 +289,7 @@ void command_input()
 	regnum=atoi(tok);
 	if (regnum>=0 && regnum<GPR_NUM) {
 	  gdisp[regnum]=1;
+	  displayflag=1;
 	  printf("display : GPR %d\n",regnum);
 	} else {
 	  puts("Invalid register number.");
@@ -301,6 +303,7 @@ void command_input()
 	regnum=atoi(tok);
 	if (regnum>=0 && regnum<FPR_NUM) {
 	  fdisp[regnum]=1;
+	  displayflag=1;
 	  printf("display : FPR %d\n",regnum);
 	} else {
 	  puts("Invalid register number.");
@@ -389,7 +392,9 @@ void run()
     exec_inst(bram[pc]);
     inst_count++;
 
-    display_reg();
+    if (displayflag) {
+      display_reg();
+    }
   }
 }
 
