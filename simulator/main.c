@@ -38,6 +38,7 @@ long long int lw_count=0;
 long long int sw_count=0;
 long long int send_count=0;
 long long int recv_count=0;
+long long int halt_count=0;
 
 long long int fmov_count=0;
 long long int fadd_count=0;

@@ -197,6 +197,12 @@ void exec_inst(uint32_t inst)
     pc++;
     recv_count++;
     break;
+  case OP_HALT:
+    if (!noprintflag) {
+      printf("halt\n");
+    }
+    halt_count++;
+    break;
   case OP_FMOV:
     fpr[r1].i=fpr[r2].i;
     if (!noprintflag) {

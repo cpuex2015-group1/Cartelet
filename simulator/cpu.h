@@ -83,6 +83,7 @@ extern long long int lw_count;
 extern long long int sw_count;
 extern long long int send_count;
 extern long long int recv_count;
+extern long long int halt_count;
 
 extern long long int fmov_count;
 extern long long int fadd_count;
