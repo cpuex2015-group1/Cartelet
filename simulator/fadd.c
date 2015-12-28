@@ -7,7 +7,7 @@
 丸め処理はnearest even。
 */
 
-uint32_t shift_r(uint32_t s, int k)
+uint32_t shift_r2(uint32_t s, int k)
 {
 //tの27ビット目はflag
 	uint32_t t;
@@ -172,7 +172,7 @@ uint32_t fadd(uint32_t a, uint32_t b)
 	if(w_sign==l_sign){
 		tmp_frac1 = (l_frac + 0x800000) << 1;
 
-		shifted_frac = shift_r(tmp_frac1, shift);
+		shifted_frac = shift_r2(tmp_frac1, shift);
 		if(shifted_frac > 0x3FFFFFF) flag = 1;
 		tmp_frac1 = shifted_frac & 0x3FFFFFF;
 
@@ -205,7 +205,7 @@ uint32_t fadd(uint32_t a, uint32_t b)
 		if(shift>1){
 			tmp_frac1 = (l_frac + 0x800000) << 2; 
 
-			shifted_frac = shift_r(tmp_frac1, shift);
+			shifted_frac = shift_r2(tmp_frac1, shift);
 			if(shifted_frac > 0x3FFFFFF) flag = 1;
 			tmp_frac1 = shifted_frac & 0x3FFFFFF;
 
