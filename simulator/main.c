@@ -139,6 +139,7 @@ void print_statistics()
   printf("sw    : %lld\n",sw_count);
   printf("send  : %lld\n",send_count);
   printf("recv  : %lld\n",recv_count);
+  printf("halt  : %lld\n",halt_count);
   printf("fmov  : %lld\n",fmov_count);
   printf("fadd  : %lld\n",fadd_count);
   printf("fsub  : %lld\n",fsub_count);
