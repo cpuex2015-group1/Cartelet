@@ -6,32 +6,42 @@
 #define SRAM_NUM (1<<20)
 #define BRAM_NUM (1<<20)
 
-#define OP_NOP   
-#define OP_ADD   
-#define OP_ADDI  
-#define OP_ADDIU 
-#define OP_SUB
-#define OP_SLLI
-#define OP_SRAI
-#define OP_BCND
-#define OP_JR
-#define OP_JAL
-#define OP_LW
-#define OP_SW
-#define OP_SEND
-#define OP_RECV
+#define OP_NOP   0x00
+#define OP_ADD   0x01
+#define OP_ADDI  0x02
+#define OP_ADDIU 0x03
+#define OP_SUB   0x04
+#define OP_SLLI  0x05
+#define OP_SRAI  0x06
+#define OP_BEQ   0x08
+#define OP_BNEQ  0x09
+#define OP_BLT   0x0a
+#define OP_BLE   0x0b
+#define OP_JR    0x0c
+#define OP_JAL   0x0d
+#define OP_LW    0x10
+#define OP_SW    0x11
+#define OP_SEND  0x1d
+#define OP_RECV  0x1e
+#define OP_HALT  0x1f
 
-#define OP_FMOV
-#define OP_FADD
-#define OP_FSUB
-#define OP_FMUL
-#define OP_FINV
-#define OP_FSQRT
-#define OP_FNEG
-#define OP_FABS
-#define OP_FBCND
-#define OP_FLW
-#define OP_FSW
+#define OP_FMOV  0x20
+#define OP_FADD  0x21
+#define OP_FSUB  0x22
+#define OP_FMUL  0x23
+#define OP_FINV  0x24
+#define OP_FSQRT 0x25
+#define OP_FNEG  0x26
+#define OP_FABS  0x27
+#define OP_FTOI  0x2c
+#define OP_ITOF  0x2d
+#define OP_FLOOR 0x2e
+#define OP_FBEQ  0x28
+#define OP_FBNEQ 0x29
+#define OP_FBLT  0x2a
+#define OP_FBLE  0x2b
+#define OP_FLW   0x30
+#define OP_FSW   0x31
 
 
 #define HALT (OP_HALT<<26)
