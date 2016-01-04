@@ -492,7 +492,8 @@ let main' asms =
     let text = remove_entry_point_mark text in
     let text = convert_pseudo_ops text in
     let text = optimize text in
-    let text = [(-1, "addi %r1 %r0 $0x00aa"); (-1, "send8 %r1")] @ [(-1, "beq %r0 %r0 " ^ entry_point)] @ text in
+    (* ひとまず0xaaを送る箇所をコメントアウトした。後で直す *)
+    let text = (*[(-1, "addi %r1 %r0 $0x00aa"); (-1, "send8 %r1")] @ *)[(-1, "beq %r0 %r0 " ^ entry_point)] @ text in
     let text' = attach_logical_line_num text in
     let tag_dict = TagDict.merge (fun key a b -> if a = None then b else a) data_tag_dict (create_tag_dict text') in
     let text' = strip_tag_def text' in
