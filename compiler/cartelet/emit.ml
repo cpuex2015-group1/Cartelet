@@ -442,12 +442,11 @@ let f oc (Prog(data, fundefs, e)) =
   Printf.fprintf oc ".globl\tmin_caml_start\n";
   Printf.fprintf oc "min_caml_start:\n";
   (* スタックポインタを一番底(2^20)にする *)
-  Printf.fprintf oc "\taddi\t%s %s $1023\n" reg_sp reg_zero;
-  Printf.fprintf oc "\taddi\t%s %s $10\n" reg_tmp reg_zero;
-  Printf.fprintf oc "\tsll\t%s %s %s\n" reg_sp reg_sp reg_tmp;
-  Printf.fprintf oc "\taddi\t%s %s $1023\n" reg_sp reg_sp;
+  Printf.fprintf oc "\taddi\t%s %s %s\n" reg_sp reg_zero (string_of_imm 1023);
+  Printf.fprintf oc "\tslli\t%s %s %s\n" reg_sp reg_sp (string_of_imm 10);
+  Printf.fprintf oc "\taddi\t%s %s %s\n" reg_sp reg_sp (string_of_imm 1023);
   (* ヒープポインタ(グローバルポインタ)を中腹(2^10)にする *)
-  Printf.fprintf oc "\taddi\t%s %s $1023\n" reg_hp reg_zero;
+  Printf.fprintf oc "\taddi\t%s %s %s\n" reg_hp reg_zero (string_of_imm 1023);
   stackset := S.empty;
   stackmap := [];
   Printf.fprintf oc "\t# Main Program Begin\n";
