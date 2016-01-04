@@ -93,7 +93,7 @@ let file f = (* ファイルをコンパイルしてファイルに出力する 
 	   catlib "lib/libmincaml_print.S" outchan);
 	if mem ["read_int"; "read_float"] then
 	  catlib "lib/libmincaml_read.S" outchan;
-	if mem ["truncate"; "int_of_float"; "float_of_int"; "floor"] then
+	if mem ["truncate"; "int_of_float"; "float_of_int"; "floor"; "read_int"; "read_float"] then
 	  catlib "lib/libmincaml_int_float.S" outchan;
 	if mem ["floor"] then
 	  catlib "lib/libmincaml_floor.S" outchan;
