@@ -88,7 +88,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), SetL(Id.L(y), p) ->
      emit_3 oc "addi" x reg_zero y p
   | NonTail(x), Mov(y, p) ->
-     if x <> y then emit_3 oc "addi" x y "0" p
+     if x <> y then emit_3 oc "addi" x y (string_of_imm 0) p
   | NonTail(x), Neg(y, p) ->
      emit_3 oc "sub" x reg_zero y p
   | NonTail(x), Add(y, V(z), p) ->
@@ -111,10 +111,10 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
 	   assert false))
   | NonTail(x), Mul(y, z', p) ->
      assert(z' = C(4));
-     emit_3 oc "slli" x y "2" p
+     emit_3 oc "slli" x y (string_of_imm 2) p
   | NonTail(x), Div(y, z', p) ->
      assert(z' = C(2));
-     emit_3 oc "srai" x y "1" p
+     emit_3 oc "srai" x y (string_of_imm 1) p
   | NonTail(x), Slli(y, i, p) ->
      assert(is_signed_16bit i);
      emit_3 oc "slli" x y (string_of_imm i) p
@@ -297,7 +297,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      emit_ld oc "lw" reg_ra 0 reg_sp p;
      emit_3 oc "addi" reg_sp reg_sp (string_of_imm (ss+1)) p;
      if List.mem a allregs && a <> reg_rv then
-       emit_3 oc "addi" a reg_rv "0" p
+       emit_3 oc "addi" a reg_rv (string_of_imm 0) p
      else if List.mem a allfregs && a <> freg_rv then
        emit_2 oc "fmov" a freg_rv p
      else
@@ -323,7 +323,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
 	   emit_ld oc "lw" reg_ra 0 reg_sp p;
 	   emit_3 oc "addi" reg_sp reg_sp (string_of_imm (ss+1)) p;
 	   if List.mem a allregs && a <> reg_rv then
-	     emit_3 oc "addi" a reg_rv "0" p
+	     emit_3 oc "addi" a reg_rv (string_of_imm 0) p
 	   else if List.mem a allfregs && a <> freg_rv then
 	     emit_2 oc "fmov" a freg_rv p
 	   else
@@ -361,7 +361,7 @@ and g'_args oc x_reg_cl ys zs p =
       (0, x_reg_cl)
       ys in
   List.iter
-    (fun (y, r) -> emit_3 oc "addi" r y "0" p)
+    (fun (y, r) -> emit_3 oc "addi" r y (string_of_imm 0) p)
     (shuffle reg_tmp yrs);
   let (d, zfrs) =
     List.fold_left
