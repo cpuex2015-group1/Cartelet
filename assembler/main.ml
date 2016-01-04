@@ -240,9 +240,9 @@ let asm_to_bin line str tag_dict =
     | "jr"    -> "001100" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
     | "jal"   -> "001101" ^ repeat "0" 10 ^
                             abs_tag_to_bin (List.nth tokens 1) line tag_dict
-    | "lw"    -> "010000" ^ reg_to_bin (List.nth tokens 2) ^
+    | "lw"    -> "010000" ^ reg_to_bin (List.nth tokens 1) ^
                             reg_to_bin (List.nth tokens 3) ^
-                            dsp_to_bin (List.nth tokens 1)
+                            dsp_to_bin (List.nth tokens 2)
     | "sw"    -> "010001" ^ reg_to_bin (List.nth tokens 2) ^
                             reg_to_bin (List.nth tokens 3) ^
                             dsp_to_bin (List.nth tokens 1)
@@ -289,9 +289,9 @@ let asm_to_bin line str tag_dict =
     | "fble"  -> "101011" ^ reg_to_bin (List.nth tokens 1) ^
                             reg_to_bin (List.nth tokens 2) ^
                             tag_to_bin (List.nth tokens 3) line tag_dict
-    | "flw"   -> "110000" ^ reg_to_bin (List.nth tokens 2) ^
+    | "flw"   -> "110000" ^ reg_to_bin (List.nth tokens 1) ^
                             reg_to_bin (List.nth tokens 3) ^
-                            dsp_to_bin (List.nth tokens 1)
+                            dsp_to_bin (List.nth tokens 2)
     | "fsw"   -> "110001" ^ reg_to_bin (List.nth tokens 2) ^
                             reg_to_bin (List.nth tokens 3) ^
                             dsp_to_bin (List.nth tokens 1)
