@@ -134,9 +134,49 @@ void exec_inst(uint32_t inst)
     pc++;
     srai_count++;
     break;
-  case OP_BCND:
-    pc++;
-    bcnd_count++;
+  case OP_BEQ:
+    if (gpr[r1]==gpr[r2]) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("beq : pc <- (r%d == r%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    beq_count++;
+    break;
+  case OP_BNEQ:
+    if (gpr[r1]!=gpr[r2]) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("bneq : pc <- (r%d != r%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    bneq_count++;
+    break;
+  case OP_BLT:
+    if (gpr[r1]<gpr[r2]) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("blt : pc <- (r%d < r%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    blt_count++;
+    break;
+  case OP_BLE:
+    if (gpr[r1]<=gpr[r2]) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("ble : pc <- (r%d <= r%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    ble_count++;
     break;
   case OP_JR:
     pc=gpr[r1];
@@ -196,6 +236,12 @@ void exec_inst(uint32_t inst)
     }
     pc++;
     recv_count++;
+    break;
+  case OP_HALT:
+    if (!noprintflag) {
+      printf("halt\n");
+    }
+    halt_count++;
     break;
   case OP_FMOV:
     fpr[r1].i=fpr[r2].i;
@@ -279,9 +325,85 @@ void exec_inst(uint32_t inst)
     pc++;
     fabs_count++;
     break;
-  case OP_FBCND:
+  case OP_FTOI:
+    if (x86flag) {
+      gpr[r1]=(int32_t)roundf(fpr[r2].f);
+    } else {
+      gpr[r1]=fpu_ftoi(fpr[r2].i);
+    }
+    if (!noprintflag) {
+      printf("ftoi : r%d <- (int32_t) roundf(f%d)\n",r1,r2);
+    }
     pc++;
-    fbcnd_count++;
+    ftoi_count++;
+    break;
+  case OP_ITOF:
+    if (x86flag) {
+      fpr[r1].f=(float)gpr[r2];
+    } else {
+      fpr[r1].i=fpu_itof(gpr[r2]);
+    }
+    if (!noprintflag) {
+      printf("itof : f%d <- (floor) r%d\n",r1,r2);
+    }
+    pc++;
+    itof_count++;
+    break;
+  case OP_FLOOR:
+    if (x86flag) {
+      fpr[r1].f=floor(fpr[r2].f);
+    } else {
+      fpr[r1].i=fpu_floor(fpr[r2].i);
+    }
+    if (!noprintflag) {
+      printf("floor : f%d <- floor(f%d)\n",r1,r2);
+    }
+    pc++;
+    floor_count++;
+    break;
+  case OP_FBEQ:
+    if (fpr[r1].f==fpr[r2].f) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("fbeq : pc <- (f%d == f%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    fbeq_count++;
+    break;
+  case OP_FBNEQ:
+    if (fpr[r1].f!=fpr[r2].f) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("fbneq : pc <- (f%d != f%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    fbneq_count++;
+    break;
+  case OP_FBLT:
+    if (fpr[r1].f<fpr[r2].f) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("fblt : pc <- (f%d < f%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    fblt_count++;
+    break;
+  case OP_FBLE:
+    if (fpr[r1].f<=fpr[r2].f) {
+      pc=pc+1+imm;
+    } else {
+      pc++;
+    }
+    if (!noprintflag) {
+      printf("fble : pc <- (f%d <= f%d) ? pc + %d + 1 : pc + 1\n",r1,r2,imm);
+    }
+    fble_count++;
     break;
   case OP_FLW:
     fpr[r1].i=sram[gpr[r2]+imm];
