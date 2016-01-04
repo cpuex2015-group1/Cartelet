@@ -54,7 +54,7 @@ min_caml_read_float:
 	jal	min_caml_float_of_int
 	lw	%r31 0(%r29)
 	addi	%r29 %r29 $2
-	lw	-1(%r29) %r8
+	lw	%r8 -1(%r29)
 	addi	%r9 %r0 $0x2e  # '.'
 	bneq	%r8 %r9 min_caml_read_float_exit
 	# ここから小数点以下
@@ -96,8 +96,8 @@ min_caml_read_float_loop2_exit:
 	jal	min_caml_float_of_int
 	lw	%r31 0(%r29)
 	addi	%r29 %r29 $3
-	flw	-1(%r29) %f3
-	lw	-2(%r29) %r3
+	flw	%f3 -1(%r29)
+	lw	%r3 -2(%r29)
 	# 小数点以下の部分を0.fffまでずらし、更に頭の0の個数だけずらす
 	addi	%r8 %r0 min_caml_float_1
 	flw	%f4 0(%r8)
@@ -148,5 +148,5 @@ min_caml_read_float_byte:
 	recv8	%r3
 	add	%r2 %r2 %r3
 	sw	-1(%r29) %r2
-	flw	-1(%r29) %f2
+	flw	%f2 -1(%r29)
 	jr	%r31

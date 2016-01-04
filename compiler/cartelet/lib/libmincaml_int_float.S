@@ -23,7 +23,7 @@ min_caml_int_of_float_after_flag:
 	# f2: |x|, f3: 8388608.0
 	fadd	%f2 %f2 %f3
 	fsw	-1(%r29) %f2
-	lw	-1(%r29) %r2
+	lw	%r2 -1(%r29)
 	addiu32	%r10 %r0 $0x4b000000
 	sub	%r2 %r2 %r10
 	# FLAGの調整
@@ -50,7 +50,7 @@ min_caml_int_of_float_big_loop:
 	jal	min_caml_int_of_float
 	lw	%r31 0(%r29)
 	addi	%r29 %r29 $2
-	lw	-1(%r29) %r3
+	lw	%r3 -1(%r29)
 	add	%r2 %r2 %r3
 	# FLAGの調整
 	beq	%r8 %r0 min_caml_int_of_float_big_positive
@@ -77,7 +77,7 @@ min_caml_float_of_int_after_flag:
 	addiu32	%r8 %r0 $0x4b000000
 	add	%r10 %r11 %r8
 	sw	-1(%r29) %r10
-	flw	-1(%r29) %f2
+	flw	%f2 -1(%r29)
 	addi	%r8 %r0 min_caml_float_int_c1
 	flw	%f3 0(%r8)
 	fadd	%f2 %f2 %f3
@@ -112,8 +112,8 @@ min_caml_float_of_int_big_loop:
 	jal	min_caml_float_of_int
 	lw	%r31 0(%r29)
 	addi	%r29 %r29 $3
-	flw	-2(%r29) %f3
-	lw	-1(%r29) %r2
+	flw	%f3 -2(%r29)
+	lw	%r2 -1(%r29)
 	# 足し算する
 	fadd	%f2 %f2 %f3
 	# FLAG
