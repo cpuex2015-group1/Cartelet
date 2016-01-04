@@ -474,27 +474,39 @@ uint32_t read_nbit(FILE *fp, int n){
 	return data;
 }
 
-int readtable()
+int readtable(char* rootpath)
 {
+  char* filepath = malloc(strlen(rootpath) + 20);
   FILE *finv_fp1,*finv_fp2,*fsqrt_fp1,*fsqrt_fp2;
   int i;
 
-  finv_fp1=fopen("finv_table1.txt","r");
+  /* 実行ファイル名がrinであることを仮定している。あとでちゃんと直す */
+  rootpath[strlen(rootpath) - 3] = '\0';
+
+  strcpy(filepath, rootpath);
+  strcat(filepath, "finv_table1.txt");
+  finv_fp1=fopen(filepath,"r");
   if (finv_fp1==NULL) {
     puts("can't open file : finv_table1.txt");
     return 1;
   }
-  finv_fp2=fopen("finv_table2.txt","r");
+  strcpy(filepath, rootpath);
+  strcat(filepath, "finv_table2.txt");
+  finv_fp2=fopen(filepath,"r");
   if (finv_fp2==NULL) {
     puts("can't open file : finv_table2.txt");
     return 1;
   }
-  fsqrt_fp1=fopen("fsqrt_table1.txt","r");
+  strcpy(filepath, rootpath);
+  strcat(filepath, "fsqrt_table1.txt");
+  fsqrt_fp1=fopen(filepath,"r");
   if (fsqrt_fp1==NULL) {
     puts("can't open file : fsqrt_table1.txt");
     return 1;
   }
-  fsqrt_fp2=fopen("fsqrt_table2.txt","r");
+  strcpy(filepath, rootpath);
+  strcat(filepath, "fsqrt_table2.txt");
+  fsqrt_fp2=fopen(filepath,"r");
   if (fsqrt_fp2==NULL) {
     puts("can't open file : fsqrt_table2.txt");
     return 1;
@@ -511,6 +523,8 @@ int readtable()
   fclose(finv_fp2);
   fclose(fsqrt_fp1);
   fclose(fsqrt_fp2);
+
+  free(filepath);
 
   return 0;
 }
@@ -589,7 +603,7 @@ int main(int argc,char* argv[])
   readinst(fp);
   fclose(fp);
 
-  if (readtable()==1) {
+  if (readtable(argv[0])==1) {
     return 1;
   }
 
