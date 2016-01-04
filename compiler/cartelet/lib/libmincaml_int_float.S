@@ -33,14 +33,14 @@ min_caml_int_of_float_small_positive:
 	jr	%r31
 min_caml_int_of_float_big:
 	# |x| >= 8388608.0
-	# r2: answer, r8: FLAG, r9: addr, r10: imm, r11: const for shift
-	# f2: |x|, f3: 8388608.0, f2: -8388608.0
-	fneg	%f2 %f3
+	# r2: answer, r8: FLAG, r9: addr, r11: 8388608
+	# f2: |x|, f3: 8388608.0, f4: -8388608.0
+	fneg	%f4 %f3
 	addi	%r2 %r0 $0
+	addiu32 %r11 %r0 $8388608
 	# m回8388608を足す
 min_caml_int_of_float_big_loop:
-	fadd	%f2 %f2 %f2
-	addiu32 %r11 %r0 $8388608
+	fadd	%f2 %f2 %f4
 	add	%r2 %r2 %r11
 	fble	%f3 %f2 min_caml_int_of_float_big_loop
 	# int_of_float(n)を足す
