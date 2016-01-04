@@ -85,7 +85,7 @@ min_caml_sin_after_flag:
 	jal	min_caml_reduction_2pi
 	lw	%r31 0(%r29)
 	addi	%r29 %r29 $2
-	lw	-1(%r29) %r8
+	lw	%r8 -1(%r29)
 	# x >= piならx := x - pi, FLAG reverse
 	addi	%r9 %r0 min_caml_pi
 	flw	%f3 0(%r9)
