@@ -119,7 +119,6 @@ let rec hex_imm_to_bin str =
         ""
 
 let imm_to_bin' str =
-    Printf.eprintf "### [%s]\n" str;
     if String.length str > 2 && String.sub str 0 2 = "0x" then
         zfill (hex_imm_to_bin (String.sub str 2 (String.length str - 2))) 16
     else if String.length str > 2 && String.sub str 0 2 = "0b" then
