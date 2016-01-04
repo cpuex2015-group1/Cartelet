@@ -28,6 +28,8 @@ let pp_id_or_imm = function
   | V(x) -> x
   | C(i) -> "$" ^ string_of_int i
 
+let string_of_imm i = "$" ^ (string_of_int i)
+
 (* 関数呼び出しのために引数を並べ替える(register shuffling) (caml2html: emit_shuffle) *)
 let rec shuffle sw xys =
   (* remove identical moves *)
@@ -78,9 +80,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(_), Nop _ -> ()
   | NonTail(x), Set(i, p) ->
      (if is_signed_16bit i then
-	emit_3 oc "addi" x reg_zero (string_of_int i) p
+	emit_3 oc "addi" x reg_zero (string_of_imm i) p
       else if is_unsigned_16bit i then
-	emit_3 oc "addiu" x reg_zero (string_of_int i) p
+	emit_3 oc "addiu" x reg_zero (string_of_imm i) p
       else
 	assert false)
   | NonTail(x), SetL(Id.L(y), p) ->
@@ -94,9 +96,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), Add(y, C(i), p) ->
      (if i <> 0 || x <> y then
 	(if is_signed_16bit i then
-	   emit_3 oc "addi" x y (string_of_int i) p
+	   emit_3 oc "addi" x y (string_of_imm i) p
 	 else if is_unsigned_16bit i then
-	   emit_3 oc "addiu" x y (string_of_int i) p
+	   emit_3 oc "addiu" x y (string_of_imm i) p
 	 else
 	   assert false))
   | NonTail(x), Sub(y, V(z), p) ->
@@ -104,7 +106,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), Sub(y, C(i), p) ->
      (if i <> 0 || x <> y then
 	(if is_signed_16bit (-i) then
-	   emit_3 oc "addi" x y (string_of_int (-i)) p
+	   emit_3 oc "addi" x y (string_of_imm (-i)) p
 	 else
 	   assert false))
   | NonTail(x), Mul(y, z', p) ->
@@ -115,10 +117,10 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      emit_3 oc "srai" x y "1" p
   | NonTail(x), Slli(y, i, p) ->
      assert(is_signed_16bit i);
-     emit_3 oc "slli" x y (string_of_int i) p
+     emit_3 oc "slli" x y (string_of_imm i) p
   | NonTail(x), Srai(y, i, p) ->
      assert(is_signed_16bit i);
-     emit_3 oc "srai" x y (string_of_int i) p
+     emit_3 oc "srai" x y (string_of_imm i) p
   | NonTail(x), Ld(y, V(z), p) ->
      emit_3 oc "add" reg_tmp y z p;
      emit_ld oc "lw" x 0 reg_tmp p
@@ -221,7 +223,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | Tail, IfEq(x, C(i), e1, e2, p) ->
      if i <> 0 then
        (assert(is_signed_16bit i);
-	emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
+	emit_3 oc "addi" reg_tmp reg_zero (string_of_imm i) p;
 	g'_tail_if oc e1 e2 "beq" x reg_tmp p)
      else
 	g'_tail_if oc e1 e2 "beq" x reg_zero p
@@ -229,13 +231,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      g'_tail_if oc e1 e2 "ble" x y p
   | Tail, IfLE(x, C(i), e1, e2, p) ->
      assert(is_signed_16bit i);
-     emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
+     emit_3 oc "addi" reg_tmp reg_zero (string_of_imm i) p;
      g'_tail_if oc e1 e2 "ble" x reg_tmp p
   | Tail, IfGE(x, V(y), e1, e2, p) ->
      g'_tail_if oc e1 e2 "ble" y x p
   | Tail, IfGE(x, C(i), e1, e2, p) ->
      assert(is_signed_16bit i);
-     emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
+     emit_3 oc "addi" reg_tmp reg_zero (string_of_imm i) p;
      g'_tail_if oc e1 e2 "ble" reg_tmp x p
   | Tail, IfFEq(x, y, e1, e2, p) ->
      g'_tail_if oc e1 e2 "fbeq" x y p
@@ -246,7 +248,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(z), IfEq(x, C(i), e1, e2, p) ->
      if i <> 0 then
        (assert(is_signed_16bit(i));
-	emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
+	emit_3 oc "addi" reg_tmp reg_zero (string_of_imm i) p;
 	g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" x reg_tmp p)
      else
 	g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" x reg_zero p
@@ -254,13 +256,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" x y p
   | NonTail(z), IfLE(x, C(i), e1, e2, p) ->
      assert(is_signed_16bit i);
-     emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
+     emit_3 oc "addi" reg_tmp reg_zero (string_of_imm i) p;
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" x reg_tmp p;
   | NonTail(z), IfGE(x, V(y), e1, e2, p) ->
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" y x p
   | NonTail(z), IfGE(x, C(i), e1, e2, p) ->
      assert(is_signed_16bit i);
-     emit_3 oc "addi" reg_tmp reg_zero (string_of_int i) p;
+     emit_3 oc "addi" reg_tmp reg_zero (string_of_imm i) p;
      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" reg_tmp x p;
   | NonTail(z), IfFEq(x, y, e1, e2, p) ->
      g'_non_tail_if oc (NonTail(z)) e1 e2 "fbeq" x y p
@@ -288,12 +290,12 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      g'_args oc [(x, reg_cl)] ys zs p;
      let ss = stacksize () in
      assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
-     emit_3 oc "addi" reg_sp reg_sp (string_of_int (-(ss+1))) p;
+     emit_3 oc "addi" reg_sp reg_sp (string_of_imm (-(ss+1))) p;
      emit_st oc "sw" 0 reg_sp reg_ra p;
      emit_ld oc "lw" reg_tmp 0 reg_cl p;
      emit_1 oc "jalr" reg_tmp p;
      emit_ld oc "lw" reg_ra 0 reg_sp p;
-     emit_3 oc "addi" reg_sp reg_sp (string_of_int (ss+1)) p;
+     emit_3 oc "addi" reg_sp reg_sp (string_of_imm (ss+1)) p;
      if List.mem a allregs && a <> reg_rv then
        emit_3 oc "addi" a reg_rv "0" p
      else if List.mem a allfregs && a <> freg_rv then
@@ -315,11 +317,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
 	   g'_args oc [] ys zs p;
 	   let ss = stacksize () in
 	   assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
-	   emit_3 oc "addi" reg_sp reg_sp (string_of_int (-(ss+1))) p;
+	   emit_3 oc "addi" reg_sp reg_sp (string_of_imm (-(ss+1))) p;
 	   emit_st oc "sw" 0 reg_sp reg_ra p;
 	   emit_1 oc "jal" x p;
 	   emit_ld oc "lw" reg_ra 0 reg_sp p;
-	   emit_3 oc "addi" reg_sp reg_sp (string_of_int (ss+1)) p;
+	   emit_3 oc "addi" reg_sp reg_sp (string_of_imm (ss+1)) p;
 	   if List.mem a allregs && a <> reg_rv then
 	     emit_3 oc "addi" a reg_rv "0" p
 	   else if List.mem a allfregs && a <> freg_rv then
