@@ -345,7 +345,7 @@ and g'_non_tail_if oc dest e1 e2 b reg1 reg2 p =
   let stackset_back = !stackset in
   g oc (dest, e2);
   let stackset1 = !stackset in
-  emit_3 oc "beq" reg_zero reg_zero b_cont;
+  emit_3 oc "beq" reg_zero reg_zero b_cont p;
   Printf.fprintf oc "%s:\n" b_true;
   stackset := stackset_back;
   g oc (dest, e1);
