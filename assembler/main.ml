@@ -119,9 +119,10 @@ let rec hex_imm_to_bin str =
         ""
 
 let imm_to_bin' str =
-    if String.length str > 2 &&  String.sub str 0 2 = "0x" then
+    Printf.eprintf "### [%s]\n" str;
+    if String.length str > 2 && String.sub str 0 2 = "0x" then
         zfill (hex_imm_to_bin (String.sub str 2 (String.length str - 2))) 16
-    else if String.length str > 2 &&  String.sub str 0 2 = "0b" then
+    else if String.length str > 2 && String.sub str 0 2 = "0b" then
         zfill (String.sub str 2 (String.length str - 2)) 16
     else
         dec_imm_to_bin str
@@ -205,80 +206,96 @@ let asm_to_bin line str tag_dict =
     Printf.eprintf "%s\n" str;
     let tokens = Str.split (Str.regexp "[ \t()]+") str in
     match List.hd tokens with
-    | "nop"  -> repeat "0" 32
-    | "add"  -> "000001" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "addi" -> "000010" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict
-    | "sub"  -> "000011" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "subi" -> "000100" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           imm_to_bin (List.nth tokens 3)
-    | "sll"  -> "000101" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "srl"  -> "000110" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "st"   -> "001000" ^ reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^
-                           dsp_to_bin (List.nth tokens 1)
-    | "ld"   -> "001001" ^ reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^
-                           dsp_to_bin (List.nth tokens 1)
-    | "beq"  -> "010000" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           tag_to_bin (List.nth tokens 3) line tag_dict
-    | "bneq" -> "010001" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           tag_to_bin (List.nth tokens 3) line tag_dict
-    | "jal"  -> "010011" ^ repeat "0" 10 ^
-                           abs_tag_to_bin (List.nth tokens 1) line tag_dict
-    | "slt"  -> "010100" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "bclt" -> "010101" ^ repeat "0" 10 ^
-                           tag_to_bin (List.nth tokens 1) line tag_dict
-    | "bclf" -> "010110" ^ repeat "0" 10 ^
-                           tag_to_bin (List.nth tokens 1) line tag_dict
-    | "addiu"-> "010111" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict
-    | "jr"   -> "010010" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
-    | "send" -> "100000" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
-    | "halt" -> "100001" ^ repeat "0" 26
-    | "send8"-> "100010" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
-    | "recv8"-> "100011" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
-    | "fadd" -> "110000" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "fmul" -> "110001" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
-    | "finv" -> "110010" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
-    | "fneg" -> "110011" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
-    | "fabs" -> "110100" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
-    | "fst"  -> "110101" ^ reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^
-                           dsp_to_bin (List.nth tokens 1)
-    | "fld"  -> "110110" ^ reg_to_bin (List.nth tokens 2) ^
-                           reg_to_bin (List.nth tokens 3) ^
-                           dsp_to_bin (List.nth tokens 1)
-    | "fseq" -> "110111" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
-    | "fslt" -> "111000" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
-    | "fmov" -> "111001" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
-    | "fsqrt"-> "111010" ^ reg_to_bin (List.nth tokens 1) ^
-                           reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    (* 整数命令 *)
+    | "nop"   -> repeat "0" 32
+    | "add"   -> "000001" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
+    | "addi"  -> "000010" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict
+    | "addiu" -> "000011" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict
+    | "sub"   -> "000100" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
+    | "slli"  -> "000101" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            imm_to_bin (List.nth tokens 3)
+    | "srai"  -> "000110" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            imm_to_bin (List.nth tokens 3)
+    | "beq"   -> "001000" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "bneq"  -> "001001" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "blt"   -> "001010" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "ble"   -> "001011" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "jr"    -> "001100" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
+    | "jal"   -> "001101" ^ repeat "0" 10 ^
+                            abs_tag_to_bin (List.nth tokens 1) line tag_dict
+    | "lw"    -> "010000" ^ reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^
+                            dsp_to_bin (List.nth tokens 1)
+    | "sw"    -> "010001" ^ reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^
+                            dsp_to_bin (List.nth tokens 1)
+    | "send"
+    | "send8" -> "011101" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
+    | "recv"
+    | "recv8" -> "011110" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21
+    | "halt"  -> "011111" ^ repeat "0" 26
+    (* 浮動小数点数命令 *)
+    | "fmov"  -> "100000" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "fadd"  -> "100001" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
+    | "fsub"  -> "100010" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
+    | "fmul"  -> "100011" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^ repeat "0" 11
+    | "finv"  -> "100100" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "fsqrt" -> "100101" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "fneg"  -> "100110" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "fabs"  -> "100111" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "ftoi"  -> "101100" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "itof"  -> "101101" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "floor" -> "101110" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^ repeat "0" 16
+    | "fbeq"  -> "101000" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "fbneq" -> "101001" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "fblt"  -> "101010" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "fble"  -> "101011" ^ reg_to_bin (List.nth tokens 1) ^
+                            reg_to_bin (List.nth tokens 2) ^
+                            tag_to_bin (List.nth tokens 3) line tag_dict
+    | "flw"   -> "110000" ^ reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^
+                            dsp_to_bin (List.nth tokens 1)
+    | "fsw"   -> "110001" ^ reg_to_bin (List.nth tokens 2) ^
+                            reg_to_bin (List.nth tokens 3) ^
+                            dsp_to_bin (List.nth tokens 1)
     | _ -> raise (Failure "matching failed in asm_to_bin")
 
 let rec split_by_num str num =
