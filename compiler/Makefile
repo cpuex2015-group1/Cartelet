@@ -40,7 +40,7 @@ join-reg join-reg2 non-tail-if non-tail-if2 \
 inprod inprod-rec inprod-loop matmul matmul-flat \
 muldiv array read fb \
 fib ack tarai \
-float logistic
+float fib_float logistic
 
 do_test: $(TESTS:%=test/%.cmp)
 
