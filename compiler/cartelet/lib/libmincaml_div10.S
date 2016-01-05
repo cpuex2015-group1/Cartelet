@@ -9,7 +9,6 @@ min_caml_div10:
 	add	%r2 %r2 %r8
 	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	addi	%r10 %r0 $3
 	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
 	slli	%r2 %r2 $-1
