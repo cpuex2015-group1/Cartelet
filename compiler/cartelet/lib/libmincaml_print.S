@@ -97,7 +97,7 @@ min_caml_print_int_send:
 	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
-	beq	%r8 %r0 min_caml_print_int_exit
+	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
 	slli	%r9 %r9 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
