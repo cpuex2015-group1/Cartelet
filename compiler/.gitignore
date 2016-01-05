@@ -63,6 +63,7 @@
 !/cartelet/lib/test/*.c
 !/cartelet/lib/test/*.plt
 !/cartelet/lib/test/*.log
+!/cartelet/lib/test/Makefile
 
 # MinCaml Output
 *.cat.ml
