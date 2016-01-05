@@ -13,7 +13,9 @@ min_caml_read_int:
 min_caml_read_int_start:
 	recv8	%r3
 	beq	%r3 %r11 min_caml_read_int_negative
-	ble	%r9 %r3 min_caml_read_int_positive
+	ble	%r9 %r3 min_caml_read_int_start_ble_30
+	beq	%r0 %r0 min_caml_read_int_start
+min_caml_read_int_start_ble_30:
 	ble	%r3 %r10 min_caml_read_int_positive
 	beq	%r0 %r0 min_caml_read_int_start
 min_caml_read_int_negative:
