@@ -264,6 +264,10 @@ void exec_inst(uint32_t inst)
     fadd_count++;
     break;
   case OP_FSUB:
+    fpr[r1].f=fpr[r2].f-fpr[r3].f;
+    if (!noprintflag) {
+      printf("fsub : f%d <- f%d - f%d\n",r1,r2,r3);
+    }
     pc++;
     fsub_count++;
     break;
