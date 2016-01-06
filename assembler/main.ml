@@ -481,6 +481,12 @@ let rec output_format_obj prog =
     | [] -> ()
     | l :: prog' -> output_int32 (int32_of_bin l); output_format_obj prog'
 
+(* for debug *)
+let rec output_text' = function
+  | [] -> ()
+  | (num, line, asm) :: lst -> (Printf.eprintf "(%d, %s)\n" num asm;
+				output_text' lst)
+
 let main' asms =
     let asms = trim_comment asms in
     let data = attach_logical_line_num (extract_data asms) in
@@ -495,6 +501,7 @@ let main' asms =
     (* ひとまず0xaaを送る箇所をコメントアウトした。後で直す *)
     let text = (*[(-1, "addi %r1 %r0 $0x00aa"); (-1, "send8 %r1")] @ *)[(-1, "beq %r0 %r0 " ^ entry_point)] @ text in
     let text' = attach_logical_line_num text in
+    output_text' text'; (* for debug *)
     let tag_dict = TagDict.merge (fun key a b -> if a = None then b else a) data_tag_dict (create_tag_dict text') in
     let text' = strip_tag_def text' in
     let prog = List.map (fun (lline, _, asm) -> asm_to_bin lline asm tag_dict) text' in
