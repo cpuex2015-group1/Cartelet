@@ -166,9 +166,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      assert(is_signed_16bit i);
      emit_st oc "fsw" i y x p
   | NonTail(_), Send(x, p) ->
-     (* 後で使う予定 *) ()
+     (* 後で使う予定 *)
+     assert false;
   | NonTail(x), Recv(p) ->
-     (* 後で使う予定 *) ()
+     (* 後で使う予定 *)
+     assert false;
   | NonTail(_), Comment(s, p) ->
      Printf.fprintf oc "\t# %s\t" s;
      line oc p
