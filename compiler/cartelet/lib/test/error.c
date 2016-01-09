@@ -93,7 +93,7 @@ int main(const int argc, const char* argv[]) {
   union u output[num];
   int i;
 
-  in_fp = fopen("test-cos-sin.out.bin", "rb");
+  in_fp = fopen("test-atan.out.bin", "rb");
 
   for(i=0;i<num;i++){
     if (fread(&temp, 1, 1, in_fp) != 1) break;
@@ -130,7 +130,7 @@ int main(const int argc, const char* argv[]) {
   printf("input     output        answer        diff(ulp)\n");
 
   for(i=0;i<loopnum;i++){
-    answer.f = sinf(input[i].f);
+    answer.f = atanf(input[i].f);
 
     if((output[i].ui & 0x80000000) == (answer.ui & 0x80000000)){ //outputとanswerの符号が同じ場合
       if(output[i].ui >= answer.ui) tmpdiff = output[i].ui - answer.ui;

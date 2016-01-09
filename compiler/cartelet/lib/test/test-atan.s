@@ -5,8 +5,6 @@ min_caml_half_pi:
 	.long	0x3fc90fdb
 min_caml_quarter_pi:
 	.long	0x3f490fdb
-min_caml_float_0:
-	.long	0x00000000
 min_caml_float_1:
 	.long	0x3f800000
 min_caml_float_minus_1:
@@ -67,33 +65,31 @@ main:
 
 
 	addi	%r29 %r0 $1023
-	addi	%r25 %r0 $10
-	sll	%r29 %r29 %r25
+	slli	%r29 %r29 $10
 	addi	%r29 %r29 $1023
 	addi	%r28 %r0 $1023
 	addi	%r8 %r0 minus2pi
-	fld	0(%r8) %f0
+	flw	%f2 0(%r8)
 	addi	%r8 %r0 reitenichi
-	fld	0(%r8) %f1
-	fneg	%f2 %f0
+	flw	%f3 0(%r8)
+	fneg	%f4 %f2
 loop:
-	fst	-1(%r29) %f0
-	fst	-2(%r29) %f1
-	fst	-3(%r29) %f2
+	fsw	-1(%r29) %f2
+	fsw	-2(%r29) %f3
+	fsw	-3(%r29) %f4
 	addi	%r29 %r29 $-4
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_print_float_byte
-	fld	3(%r29) %f0
+	flw	%f2 3(%r29)
 	jal	min_caml_atan
 	jal	min_caml_print_float_byte
-	ld	0(%r29) %r31
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $4
-	fld	-1(%r29) %f0
-	fld	-2(%r29) %f1
-	fld	-3(%r29) %f2
-	fadd	%f0 %f0 %f1
-	fslt	%f2 %f0
-	bclt	exit
+	flw	%f2 -1(%r29)
+	flw	%f3 -2(%r29)
+	flw	%f4 -3(%r29)
+	fadd	%f2 %f2 %f3
+	fblt	%f4 %f2 exit
 	addi	%r8 %r0 loop
 	jr	%r8
 exit:
@@ -101,297 +97,107 @@ exit:
 # atan
 min_caml_atan:
 	# r8: FLAG, r9: addr
-	# f0: x, f1: pi, f2: 0.5, f3: temp(pi/4, pi/2), f4: temp, f5: temp
-	addi	%r9 %r0 min_caml_float_0
-	fld	0(%r9) %f1
-	fslt	%f0 %f1
-	bclt	min_caml_atan_flag_negative
+	# f2: x, f4: 0.5, f5: temp(pi/4, pi/2), f6: temp, f7: temp
+	fblt	%f2 %f0 min_caml_atan_flag_negative
 	addi	%r8 %r0 $0
-	addi	%r9 %r0 min_caml_atan_after_flag
-	jr	%r9
+	beq	%r0 %r0 min_caml_atan_after_flag
 min_caml_atan_flag_negative:
 	addi	%r8 %r0 $1
-	fabs	%f0 %f0
+	fabs	%f2 %f2
 min_caml_atan_after_flag:
 	addi	%r9 %r0 min_caml_atan_c1
-	fld	0(%r9) %f4
-	fslt	%f0 %f4
-	bclf	min_caml_atan_2
+	flw	%f6 0(%r9)
+	fble	%f6 %f2 min_caml_atan_2
 	# |x| < 0.4375
 	# kernel_atan(|x|)を返す
 	addi	%r29 %r29 $-1
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_kernel_atan
-	ld	0(%r29) %r31
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $1
 	beq	%r8 %r0 min_caml_atan_positive
-	fabs	%f0 %f0
-	fneg	%f0 %f0
+	fabs	%f2 %f2
+	fneg	%f2 %f2
 	jr	%r31
 min_caml_atan_positive:
-	fabs	%f0 %f0
+	fabs	%f2 %f2
 	jr	%r31
 min_caml_atan_2:
 	addi	%r9 %r0 min_caml_atan_c2
-	fld	0(%r9) %f4
-	fslt	%f0 %f4
-	bclf	min_caml_atan_3
+	flw	%f6 0(%r9)
+	fble	%f6 %f2 min_caml_atan_3
 	# 0.4375 <= |x| < 2.4375
 	# pi/4 + kernel_atan((|x|-1)/(|x|+1)) = kernel_atan(|x|)を返す
 	# r8: FLAG, r9: addr
-	# f0: x, f1: pi, f2: 0.5, f3: temp(pi/4), f4: |x|+1, f5: |x|-1
+	# f2: x, f4: 0.5, f5: temp(pi/4), f6: |x|+1, f7: |x|-1
 	addi	%r9 %r0 min_caml_float_1
-	fld	0(%r9) %f3
-	fadd	%f4 %f0 %f3
-	fneg	%f3 %f3
-	fadd	%f5 %f0 %f3
-	finv	%f4 %f4
-	fmul	%f0 %f4 %f5
+	flw	%f5 0(%r9)
+	fadd	%f6 %f2 %f5
+	fneg	%f5 %f5
+	fadd	%f7 %f2 %f5
+	finv	%f6 %f6
+	fmul	%f2 %f6 %f7
 	addi	%r29 %r29 $-1
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_kernel_atan
-	ld	0(%r29) %r31
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $1
 	addi	%r9 %r0 min_caml_quarter_pi
-	fld	0(%r9) %f3
-	fadd	%f0 %f0 %f3
+	flw	%f5 0(%r9)
+	fadd	%f2 %f2 %f5
 	beq	%r8 %r0 min_caml_atan_positive
-	fabs	%f0 %f0
-	fneg	%f0 %f0
+	fabs	%f2 %f2
+	fneg	%f2 %f2
 	jr	%r31
 min_caml_atan_3:
 	# |x| >= 2.4375
 	# pi/2 - kernel_atan(1/|x|) = kernel_atan(|x|)を返す
 	# r8: FLAG, r9: addr
-	# f0: x, f1: pi, f2: 0.5, f3: temp(pi/2), f4: temp, f5: temp
-	finv	%f0 %f0
+	# f2: x, f4: 0.5, f5: temp(pi/2), f6: temp, f7: temp
+	finv	%f2 %f2
 	addi	%r29 %r29 $-1
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_kernel_atan
-	ld	0(%r29) %r31
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $1
-	fneg	%f4 %f0
+	fneg	%f6 %f2
 	addi	%r9 %r0 min_caml_half_pi
-	fld	0(%r9) %f0
-	fadd	%f0 %f0 %f4
+	flw	%f2 0(%r9)
+	fadd	%f2 %f2 %f6
 	beq	%r8 %r0 min_caml_atan_positive
-	fabs	%f0 %f0
-	fneg	%f0 %f0
+	fabs	%f2 %f2
+	fneg	%f2 %f2
 	jr	%r31
 min_caml_kernel_atan:
 	# Tayler展開で計算する
 	# r8には触らないようにする, r9: addr
-	# f0: x or answer, f1: temp, f2: x^2, f3: const
-	fmul	%f2 %f0 %f0
+	# f2: x or answer, f3: temp, f4: x^2, f5: const
+	fmul	%f4 %f2 %f2
 	addi	%r9 %r0 min_caml_kernel_atan_c6
-	fld	0(%r9) %f3
-	fmul	%f1 %f3 %f2
+	flw	%f5 0(%r9)
+	fmul	%f3 %f5 %f4
 	addi	%r9 %r0 min_caml_kernel_atan_c5
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
+	flw	%f5 0(%r9)
+	fadd	%f3 %f3 %f5
+	fmul	%f3 %f3 %f4
 	addi	%r9 %r0 min_caml_kernel_atan_c4
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
+	flw	%f5 0(%r9)
+	fadd	%f3 %f3 %f5
+	fmul	%f3 %f3 %f4
 	addi	%r9 %r0 min_caml_kernel_atan_c3
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
+	flw	%f5 0(%r9)
+	fadd	%f3 %f3 %f5
+	fmul	%f3 %f3 %f4
 	addi	%r9 %r0 min_caml_kernel_atan_c2
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
+	flw	%f5 0(%r9)
+	fadd	%f3 %f3 %f5
+	fmul	%f3 %f3 %f4
 	addi	%r9 %r0 min_caml_kernel_atan_c1
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
-	fmul	%f1 %f1 %f0
-	fadd	%f0 %f1 %f0
-	jr	%r31
-# cos
-min_caml_cos:
-	# 定義域を[0, 2pi)にする
-	# r8: FLAG, r9: addr
-	# f0: x, f1: pi, f2: 0.5, f3: temp(pi/2), f4: temp
-	fabs	%f0 %f0
-	addi	%r29 %r29 $-1
-	st	0(%r29) %r31
-	jal	min_caml_reduction_2pi
-	ld	0(%r29) %r31
-	addi	%r29 %r29 $1
-	addi	%r8 %r0 $0
-	# x >= piならx := x - pi, FLAG reverse
-	addi	%r9 %r0 min_caml_pi
-	fld	0(%r9) %f1
-	fslt	%f0 %f1
-	bclt	min_caml_cos_2
-	fneg	%f3 %f1
-	fadd	%f0 %f0 %f3
-	beq	%r8 %r0 min_caml_cos_1_0
-	addi	%r8 %r0 $0
-	addi	%r9 %r0 min_caml_cos_2
-	jr	%r9
-min_caml_cos_1_0:
-	addi	%r8 %r0 $1
-min_caml_cos_2:
-	# x >= pi/2ならx := pi - x, FLAG reverse
-	addi	%r9 %r0 min_caml_float_half
-	fld	0(%r9) %f2
-	fmul	%f3 %f1 %f2
-	fslt	%f0 %f3
-	bclt	min_caml_cos_3
-	fneg	%f4 %f0
-	fadd	%f0 %f1 %f4
-	beq	%r8 %r0 min_caml_cos_2_0
-	addi	%r8 %r0 $0
-	addi	%r9 %r0 min_caml_cos_3
-	jr	%r9
-min_caml_cos_2_0:
-	addi	%r8 %r0 $1
-min_caml_cos_3:
-	# x <= pi/4ならkernel_cos, そうでないならx := pi/2 - x, kernel_sinする
-	fmul	%f4 %f3 %f2
-	fslt	%f4 %f0
-	bclf	min_caml_kernel_cos
-	fneg	%f4 %f0
-	fadd	%f0 %f3 %f4
-	addi	%r9 %r0 min_caml_kernel_sin
-	jr	%r9
-min_caml_kernel_cos:
-	# Tayler展開で計算する
-	# r8: flag, r9: addr
-	# f0: answer, f1: x^2, f3: const
-	fmul	%f1 %f0 %f0
-	addi	%r9 %r0 min_caml_kernel_cos_c3
-	fld	0(%r9) %f3
-	fmul	%f0 %f3 %f1
-	addi	%r9 %r0 min_caml_kernel_cos_c2
-	fld	0(%r9) %f3
-	fadd	%f0 %f0 %f1
-	fmul	%f0 %f0 %f3
-	addi	%r9 %r0 min_caml_kernel_cos_c1
-	fld	0(%r9) %f3
-	fadd	%f0 %f0 %f1
-	fmul	%f0 %f0 %f3
-	addi	%r9 %r0 min_caml_float_1
-	fld	0(%r9) %f3
-	fadd	%f0 %f0 %f3
-	beq	%r8 %r0 min_caml_kernel_cos_positive
-	fabs	%f0 %f0
-	fneg	%f0 %f0
-	jr	%r31
-min_caml_kernel_cos_positive:
-	fabs	%f0 %f0
-	jr	%r31
-# sin
-min_caml_sin:
-	# 定義域を[0, 2pi)にする
-	# r8: FLAG, r9: addr
-	# f0: x, f1: pi, f2: 0.5, f3: temp(pi/2), f4: temp
-	addi	%r9 %r0 min_caml_float_0
-	fld	0(%r9) %f1
-	fslt	%f0 %f1
-	bclt	min_caml_sin_flag_negative
-	addi	%r8 %r0 $0
-	addi	%r9 %r0 min_caml_sin_after_flag
-	jr	%r9
-min_caml_sin_flag_negative:
-	addi	%r8 %r0 $1
-min_caml_sin_after_flag:
-	fabs	%f0 %f0
-	st	-1(%r29) %r8
-	addi	%r29 %r29 $-2
-	st	0(%r29) %r31
-	jal	min_caml_reduction_2pi
-	ld	0(%r29) %r31
-	addi	%r29 %r29 $2
-	ld	-1(%r29) %r8
-	# x >= piならx := x - pi, FLAG reverse
-	addi	%r9 %r0 min_caml_pi
-	fld	0(%r9) %f1
-	fslt	%f0 %f1
-	bclt	min_caml_sin_2
-	fneg	%f3 %f1
-	fadd	%f0 %f0 %f3
-	beq	%r8 %r0 min_caml_sin_1_0
-	addi	%r8 %r0 $0
-	addi	%r9 %r0 min_caml_sin_2
-	jr	%r9
-min_caml_sin_1_0:
-	addi	%r8 %r0 $1
-min_caml_sin_2:
-	# x >= pi/2ならx := pi - x
-	addi	%r9 %r0 min_caml_float_half
-	fld	0(%r9) %f2
-	fmul	%f3 %f1 %f2
-	fslt	%f0 %f3
-	bclt	min_caml_sin_3
-	fneg	%f4 %f0
-	fadd	%f0 %f1 %f4
-min_caml_sin_3:
-	# x <= pi/4ならkernel_sin, そうでないならx := pi/2 - x, kernel_cosする
-	fmul	%f4 %f3 %f2
-	fslt	%f4 %f0
-	bclf	min_caml_kernel_sin
-	fneg	%f4 %f0
-	fadd	%f0 %f3 %f4
-	addi	%r9 %r0 min_caml_kernel_cos
-	jr	%r9
-min_caml_kernel_sin:
-	# Tayler展開で計算する
-	# r8: flag, r9: addr
-	# f0: x or answer, f1: temp, f2: x^2, f3: const
-	fmul	%f2 %f0 %f0
-	addi	%r9 %r0 min_caml_kernel_sin_c3
-	fld	0(%r9) %f3
-	fmul	%f1 %f3 %f2
-	addi	%r9 %r0 min_caml_kernel_sin_c2
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
-	addi	%r9 %r0 min_caml_kernel_sin_c1
-	fld	0(%r9) %f3
-	fadd	%f1 %f1 %f3
-	fmul	%f1 %f1 %f2
-	fmul	%f1 %f1 %f0
-	fadd	%f0 %f1 %f0
-	beq	%r8 %r0 min_caml_kernel_sin_positive
-	fabs	%f0 %f0
-	fneg	%f0 %f0
-	jr	%r31
-min_caml_kernel_sin_positive:
-	fabs	%f0 %f0
-	jr	%r31
-# cos & sin
-min_caml_reduction_2pi:
-	# f0を[0, 2pi)にする
-	# f1: 2*pi, f2: 0.5, f3: p
-	addi	%r9 %r0 min_caml_pi
-	fld	0(%r9) %f1
-	fadd	%f1 %f1 %f1
-	fmov	%f3 %f1
-	addi	%r9 %r0 min_caml_float_half
-	fld	0(%r9) %f2
-	addi	%r9 %r0 min_caml_reduction_2pi_while1
-min_caml_reduction_2pi_while1:
-	fslt	%f0 %f3
-	bclt	min_caml_reduction_2pi_while1_exit
-	fadd	%f3 %f3 %f3
-	jr	%r9
-min_caml_reduction_2pi_while1_exit:
-	addi	%r9 %r0 min_caml_reduction_2pi_while2
-min_caml_reduction_2pi_while2:
-	fslt	%f0 %f1
-	bclt	min_caml_reduction_2pi_while2_exit
-	fslt	%f0 %f3
-	bclt	min_caml_reduction_2pi_while2_after_if
-	fneg	%f4 %f3
-	fadd	%f0 %f0 %f4
-min_caml_reduction_2pi_while2_after_if:
+	flw	%f5 0(%r9)
+	fadd	%f3 %f3 %f5
+	fmul	%f3 %f3 %f4
 	fmul	%f3 %f3 %f2
-	jr	%r9
-min_caml_reduction_2pi_while2_exit:
+	fadd	%f2 %f3 %f2
 	jr	%r31
 # print_newline
 min_caml_print_newline:
@@ -407,8 +213,7 @@ min_caml_print_char:
 min_caml_print_int:
 	# x : signed 32 bit int
 	# マイナスだけ出力
-	slt	%r8 %r2 %r0
-	beq	%r8 %r0 min_caml_print_int_positive
+	ble	%r0 %r2 min_caml_print_int_positive
 	addi	%r8 %r0 $0x2d # '-'
 	send8	%r8
 	sub	%r2 %r0 %r2
@@ -421,61 +226,54 @@ min_caml_print_int_positive:
 min_caml_print_int_loop:
 	# max 10 digits
 	# divide by 10
-	st	-1(%r29) %r2
-	st	-2(%r29) %r8
-	st	-3(%r29) %r9
-	st	-4(%r29) %r12
+	sw	-1(%r29) %r2
+	sw	-2(%r29) %r8
+	sw	-3(%r29) %r9
+	sw	-4(%r29) %r12
 	addi	%r29 %r29 $-5
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_div10
-	ld	0(%r29) %r31
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $5
-	ld	-1(%r29) %r8
-	ld	-4(%r29) %r12	
+	lw	%r8 -1(%r29)
+	lw	%r12 -4(%r29)
 	# multiply by 10
-	addi	%r9 %r0 $1
-	sll	%r10 %r2 %r9
-	addi	%r9 %r0 $3
-	sll	%r11 %r2 %r9
+	slli	%r10 %r2 $1
+	slli	%r11 %r2 $3
 	add	%r10 %r10 %r11
 	# x mod 10
 	sub	%r10 %r8 %r10
 	# [0-9] in binary -> ASCII
 	addi	%r10 %r10 $0x30	
-	ld	-2(%r29) %r8
-	ld	-3(%r29) %r9
-	addi	%r13 %r0 $8
-	sll	%r9 %r9 %r13
-	addi	%r14 %r0 $24
-	srl	%r11 %r8 %r14
+	lw	%r8 -2(%r29)
+	lw	%r9 -3(%r29)
+	slli	%r9 %r9 $8
+	slli	%r11 %r8 $-24
 	add	%r9 %r9 %r11
-	sll	%r8 %r8 %r13
+	slli	%r8 %r8 $8
 	add	%r8 %r8 %r10
 	# loop check
 	beq	%r2 %r0 min_caml_print_int_send
 	addi	%r12 %r12 $-1
 	beq	%r12 %r0 min_caml_print_int_loop_exit
-	addi	%r13 %r0 min_caml_print_int_loop
-	jr	%r13
+	beq	%r0 %r0 min_caml_print_int_loop
 min_caml_print_int_loop_exit:
 	# rest 2 digits
 	# r2: x/(10^7), r8: upper 4 bytes ASCII, r9: lower 4 bytes ASCII
 	# remark: byte sequence is reversed
 	# divide by 10
-	st	-1(%r29) %r2
-	st	-2(%r29) %r8
-	st	-3(%r29) %r9
+	sw	-1(%r29) %r2
+	sw	-2(%r29) %r8
+	sw	-3(%r29) %r9
 	addi	%r29 %r29 $-4
-	st	0(%r29) %r31
+	sw	0(%r29) %r31
 	jal	min_caml_div10
-	ld	0(%r29) %r31
+	lw	%r31 0(%r29)
 	addi	%r29 %r29 $4
-	ld	-1(%r29) %r8
+	lw	%r8 -1(%r29)
 	# multiply by 10
-	addi	%r9 %r0 $1
-	sll	%r10 %r2 %r9
-	addi	%r9 %r0 $1
-	sll	%r11 %r2 %r9
+	slli	%r10 %r2 $1
+	slli	%r11 %r2 $3
 	add	%r10 %r10 %r11
 	# x mod 10
 	sub	%r10 %r8 %r10
@@ -487,58 +285,51 @@ min_caml_print_int_loop_exit:
 	send8	%r2
 min_caml_print_int_send_9:
 	send8	%r10
-	ld	-2(%r29) %r8
-	ld	-3(%r29) %r9
+	lw	%r8 -2(%r29)
+	lw	%r9 -3(%r29)
 min_caml_print_int_send:
-	addi	%r10 %r0 $8
 	send8	%r8
-	srl	%r8 %r8 %r10
+	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
-	srl	%r8 %r8 %r10
+	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
-	srl	%r8 %r8 %r10
+	slli	%r8 %r8 $-8
 	beq	%r8 %r0 min_caml_print_int_exit
 	send8	%r8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
-	srl	%r9 %r9 %r10
+	slli	%r9 %r9 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
-	srl	%r9 %r9 %r10
+	slli	%r9 %r9 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
-	srl	%r9 %r9 %r10
+	slli	%r9 %r9 $-8
 	beq	%r9 %r0 min_caml_print_int_exit
 	send8	%r9
 min_caml_print_int_exit:
 	jr	%r31
 # print_int (32bit, byte -> byte)
 min_caml_print_int_byte:
-	addi	%r9 %r0 $24
-	srl	%r10 %r2 %r9
+	slli	%r10 %r2 $-24
 	send8	%r10
-	addi	%r9 %r0 $16
-	srl	%r10 %r2 %r9
+	slli	%r10 %r2 $-16
 	send8	%r10
-	addi	%r9 %r0 $8
-	srl	%r10 %r2 %r9
+	slli	%r10 %r2 $-8
 	send8	%r10
 	send8	%r2
 	jr	%r31	
 # print_float (32bit, byte -> byte)
 min_caml_print_float_byte:
-	fst	-1(%r29) %f0
-	ld	-1(%r29) %r8
-	addi	%r9 %r0 $24
-	srl	%r10 %r8 %r9
+	fsw	-1(%r29) %f2
+	lw	%r8 -1(%r29)
+	slli	%r10 %r8 $-24
 	send8	%r10
-	addi	%r9 %r0 $16
-	srl	%r10 %r8 %r9
+	slli	%r10 %r8 $-16
 	send8	%r10
-	addi	%r9 %r0 $8
-	srl	%r10 %r8 %r9
+	slli	%r10 %r8 $-8
 	send8	%r10
 	send8	%r8
 	jr	%r31	
@@ -546,43 +337,40 @@ min_caml_print_float_byte:
 min_caml_div10:
 	# http://stackoverflow.com/a/19076173
 	# http://homepage.cs.uiowa.edu/~jones/bcd/divide.html
-	# r2: x/10, r8: x(unsigned), r9: 1, r10: 3
+	# 後で書き直す
+	# r2: x/10, r8: x(unsigned)
 	add	%r8 %r0 %r2
-	addi	%r9 %r0 $2
-	srl	%r2 %r8 %r9
+	slli	%r2 %r8 $-2
 	add	%r2 %r2 %r8
-	addi	%r9 %r0 $1
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	addi	%r10 %r0 $3
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-3
 	add	%r2 %r2 %r8
-	srl	%r2 %r2 %r9
+	slli	%r2 %r2 $-1
 	add	%r2 %r2 %r8
-	addi	%r10 %r0 $4
-	srl	%r2 %r2 %r10
+	slli	%r2 %r2 $-4
 	jr	%r31
