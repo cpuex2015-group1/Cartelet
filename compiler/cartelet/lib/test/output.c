@@ -13,8 +13,8 @@ int main(const int argc, const char* argv[]) {
   } data;
   char buf[10000];
 
-  in_fp = fopen("test-floor.out.bin", "rb");
-  out_fp = fopen("test-floor.out", "w");
+  in_fp = fopen("test-int-float.out.bin", "rb");
+  out_fp = fopen("test-int-float.out", "w");
 
   while(1) {
     if (fread(&temp, 1, 1, in_fp) != 1) break;
@@ -42,7 +42,7 @@ int main(const int argc, const char* argv[]) {
     data.ui <<= 8;
     if (fread(&temp, 1, 1, in_fp) != 1) break;
     data.ui += temp;
-    sprintf(buf, "%f\n", data.f);
+    sprintf(buf, "%d\n", data.i);
     fwrite(buf, strlen(buf), 1, out_fp);
   }
 
