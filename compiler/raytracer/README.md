@@ -10,7 +10,7 @@ CPU実験用レイトレーサです。
 
 - `make` : アセンブラで`min-rt.cat.s`をオブジェクトファイル`min-rt.o`にします。
 - `make contest` : `sld/contest.sld`をシミュレータ上でレイトレースし、PPMファイルとPNGファイルをそれぞれ`ppm/contest.ppm`と`png/contest.png`に出力します。
-- `make all` : `sld`フォルダ以下の殆どのSLDファイルを全てレイトレースし、`ppm`フォルダと`png`フォルダに出力します。
+- `make all` : `sld`フォルダ以下の殆どのSLDファイルを全てレイトレースし、`ppm`フォルダと`png`フォルダに出力します。`-j`オプションをつかって並列実行することをオススメします。
 - `make ppm/POHE.ppm` : `sld/POHE.sld`をレイトレースし`ppm/POHE.ppm`に出力します。`make png/POHE.png`もできます。
 - `make clean` : `min-rt.o`を削除します。
 - `make clean_all` : `min-rt.o`と全てのPPM / PNGファイルを削除します。
