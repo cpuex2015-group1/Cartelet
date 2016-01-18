@@ -5,7 +5,7 @@ MINRT_ASM = min-rt.cat.s
 MINRT_OBJ = min-rt.o
 
 # SLDファイルの内容が全く同じものがあるので適宜飛ばす
-SLD = base pika temp eye textest candy hoe hoehoe \
+SLD = base pika rot temp eye textest candy hoe hoehoe \
 noe charhan2 lattice2 charhan lattice ss20 \
 tron ss20-2 contest shuttle piero1
 
