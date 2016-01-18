@@ -48,6 +48,8 @@
 
 /raytracer/*.ppm
 /raytracer/*.png
+/raytracer/*/*.ppm
+/raytracer/*/*.png
 
 /test/*
 !/test/*.ml
