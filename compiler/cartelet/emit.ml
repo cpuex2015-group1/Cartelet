@@ -20,7 +20,6 @@ let locate x =
     | y :: zs when x = y -> 0 :: List.map succ (loc zs)
     | y :: zs -> List.map succ (loc zs) in
   loc !stackmap
-(** あやしい *)
 let offset x = (List.hd (locate x)) + 1
 let stacksize () = List.length !stackmap * 1
 
@@ -165,6 +164,12 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(_), StF(x, y, C(i), p) ->
      assert(is_signed_16bit i);
      emit_st oc "fsw" i y x p
+  | NonTail(x), FToI(y, p) ->
+     emit_2 oc "ftoi" x y p
+  | NonTail(x), IToF(y, p) ->
+     emit_2 oc "itof" x y p
+  | NonTail(x), Floor(y, p) ->
+     emit_2 oc "floor" x y p
   | NonTail(_), Send(x, p) ->
      (* 後で使う予定 *)
      assert false;
@@ -203,12 +208,12 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      emit_1 oc "jr" reg_ra p
   | Tail, (Set _ | SetL _ | Mov _ |
 	   Neg _ | Add _ | Sub _ | Mul _ | Div _ | Slli _ | Srai _ |
-	   Ld _ as exp) ->
+	   Ld _ | FToI _ as exp) ->
      let p = Asm.pos_of_exp exp in
      g' oc (NonTail(reg_rv), exp);
      emit_1 oc "jr" reg_ra p
   | Tail, (FMov _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ |
-	   FInv _ | FSqrt _ | FAbs _ | LdF _  as exp) ->
+	   FInv _ | FSqrt _ | FAbs _ | LdF _  | IToF _ | Floor _ as exp) ->
      let p = Asm.pos_of_exp exp in
      g' oc (NonTail(freg_rv), exp);
      emit_1 oc "jr" reg_ra p
@@ -281,6 +286,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
          g' oc (Tail, FAbs(List.hd zs, p))
       | "min_caml_sqrt" ->
 	 g' oc (Tail, FSqrt(List.hd zs, p))
+      | "min_caml_int_of_float"
+      | "min_caml_truncate" ->
+	 g' oc (Tail, FToI(List.hd zs, p))
+      | "min_caml_float_of_int" ->
+	 g' oc (Tail, IToF(List.hd ys, p))
+      | "min_caml_floor" ->
+	 g' oc (Tail, Floor(List.hd zs, p))
       | "min_caml_read_int" when !server_mode ->
 	 g' oc (Tail, CallDir(Id.L("min_caml_read_int_byte"), ys, zs, p))
       | "min_caml_read_float" when !server_mode ->
@@ -310,6 +322,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
          g' oc (NonTail(a), FAbs(List.hd zs, p))
       | "min_caml_sqrt" ->
 	 g' oc (NonTail(a), FSqrt(List.hd zs, p))
+      | "min_caml_int_of_float"
+      | "min_caml_truncate" ->
+	 g' oc (NonTail(a), FToI(List.hd zs, p))
+      | "min_caml_float_of_int" ->
+	 g' oc (NonTail(a), IToF(List.hd ys, p))
+      | "min_caml_floor" ->
+	 g' oc (NonTail(a), Floor(List.hd zs, p))
       | "min_caml_read_int" when !server_mode ->
 	 g' oc (NonTail(a), CallDir(Id.L("min_caml_read_int_byte"), ys, zs, p))
       | "min_caml_read_float" when !server_mode ->

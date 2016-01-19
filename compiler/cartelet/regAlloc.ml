@@ -47,6 +47,7 @@ and source' t = function
     Slli(x, _, _) | Srai(x, _, _) |
     FMov(x, _) | FNeg(x, _) | FSub(x, _, _) | FDiv(x, _, _) |
     FInv(x, _) | FSqrt(x, _) | FAbs(x, _) |
+    FToI(x, _) | IToF(x, _) | Floor(x, _) |
     Send(x, _) -> [x]
   | Add(x, V y, _) | FAdd(x, y, _) | FMul(x, y, _) -> [x; y]
   | Mul(x, V y, _) -> assert false
@@ -168,6 +169,9 @@ and g' dest cont regenv = function (* 各命令のレジスタ割り当て (caml2html: regal
   | FAbs(x, p) -> (Ans(FAbs(find x Type.Float regenv, p)), regenv)
   | LdF(x, y', p) -> (Ans(LdF(find x Type.Int regenv, find' y' regenv, p)), regenv)
   | StF(x, y, z', p) -> (Ans(StF(find x Type.Float regenv, find y Type.Int regenv, find' z' regenv, p)), regenv)
+  | FToI(x, p) -> (Ans(FToI(find x Type.Float regenv, p)), regenv)
+  | IToF(x, p) -> (Ans(IToF(find x Type.Int regenv, p)), regenv)
+  | Floor(x, p) -> (Ans(Floor(find x Type.Float regenv, p)), regenv)
   | Send(x, p) -> (Ans(Send(find x Type.Int regenv, p)), regenv)
   | IfEq(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfEq(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p
   | IfLE(x, y', e1, e2, p) as exp -> g'_if dest cont regenv exp (fun e1' e2' -> IfLE(find x Type.Int regenv, find' y' regenv, e1', e2', p)) e1 e2 p

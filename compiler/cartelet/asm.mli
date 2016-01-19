@@ -27,6 +27,9 @@ and exp =
   | FAbs of Id.t * Lexing.position
   | LdF of Id.t * id_or_imm * Lexing.position
   | StF of Id.t * Id.t * id_or_imm * Lexing.position
+  | FToI of Id.t * Lexing.position
+  | IToF of Id.t * Lexing.position
+  | Floor of Id.t * Lexing.position
   | Send of Id.t * Lexing.position
   | Recv of Lexing.position
   | Comment of string * Lexing.position

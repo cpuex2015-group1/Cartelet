@@ -320,10 +320,12 @@ let asm_to_bin line str tag_dict =
     | "fabs"  -> (assert_reg_name_fpr tokens 2;
 		  "100111" ^ reg_to_bin (List.nth tokens 1) ^
                              reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
-    | "ftoi"  -> (assert_reg_name_fpr tokens 2;
+    | "ftoi"  -> (if not (is_gpr (List.nth tokens 1)) then raise (Invalid_Reg_Name 1);
+		  if not (is_fpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
 		  "101100" ^ reg_to_bin (List.nth tokens 1) ^
                              reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
-    | "itof"  -> (assert_reg_name_fpr tokens 2;
+    | "itof"  -> (if not (is_fpr (List.nth tokens 1)) then raise (Invalid_Reg_Name 1);
+		  if not (is_gpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
 		  "101101" ^ reg_to_bin (List.nth tokens 1) ^
                              reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "floor" -> (assert_reg_name_fpr tokens 2;

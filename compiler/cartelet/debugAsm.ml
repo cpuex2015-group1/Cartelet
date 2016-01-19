@@ -139,6 +139,9 @@ and exp_iter e =
 	 Format.print_space ();
 	 id_or_imm_emit idimm;
 	 Format.close_box ())
+     | Asm.FToI (id, p) -> monop_emit "FToI" id
+     | Asm.IToF (id, p) -> monop_emit "IToF" id
+     | Asm.Floor (id, p) -> monop_emit "Floor" id
      | Asm.Send (id, p) -> monop_emit "Send" id
      | Asm.Recv (p) -> Format.print_string "Recv"
      | Asm.Comment (str, p) ->
