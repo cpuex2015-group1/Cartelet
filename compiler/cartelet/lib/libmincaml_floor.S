@@ -24,7 +24,7 @@ min_caml_floor_small_negative:
 min_caml_floor_after_flag:
 	fadd	%f2 %f2 %f4
 	fadd	%f2 %f2 %f5
-	beq	%r8 %f2 min_caml_floor_adjust
+	beq	%r8 %r0 min_caml_floor_adjust
 	fneg	%f2 %f2
 min_caml_floor_adjust:
 	# r8: FLAG
