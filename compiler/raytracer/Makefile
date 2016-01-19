@@ -19,7 +19,7 @@ ppm/%.ppm: sld/%.sld $(MINRT_OBJ)
 png/%.png: ppm/%.ppm
 	convert $< $@
 
-contest: png/contest.png
+contest: ppm/contest.ppm png/contest.png
 all: $(SLD:%=ppm/%.ppm) $(SLD:%=png/%.png)
 
 .PHONY: clean clean_all
