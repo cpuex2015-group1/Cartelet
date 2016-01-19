@@ -60,6 +60,7 @@ void exec_inst(uint32_t inst)
   uint8_t senddata=0;
 
   int finv_addr,fsqrt_addr;
+  IF tmp;
 
   decode(inst,&opcode,&r1,&r2,&r3,&shamt,&funct,&imm,&uimm,&addr);
 
@@ -264,7 +265,12 @@ void exec_inst(uint32_t inst)
     fadd_count++;
     break;
   case OP_FSUB:
-    fpr[r1].f=fpr[r2].f-fpr[r3].f;
+    if (x86flag) {
+      fpr[r1].f=fpr[r2].f-fpr[r3].f;
+    } else {
+      tmp.f=-fpr[r3].f;
+      fpr[r1].i=fadd(fpr[r2].i,tmp.i);
+    }
     if (!noprintflag) {
       printf("fsub : f%d <- f%d - f%d\n",r1,r2,r3);
     }
