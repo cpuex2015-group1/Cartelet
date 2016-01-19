@@ -1,0 +1,39 @@
+2016/Jan/16 2nd INLINE=20 itof/ftoi/floorはライブラリ実装 fsubはハードウェア実装 後は1stとなるべく同じ実装にしたはず。
+===Statistics===
+nop   : 0
+add   : 399695714
+addi  : 849904610
+addiu : 38309813
+sub   : 179716
+slli  : 2545292
+srai  : 2
+beq   : 276079653
+bneq  : 230
+blt   : 791
+ble   : 2874784
+jr    : 119668894
+jal   : 9807689
+lw    : 927366652
+sw    : 373621680
+send  : 154909
+recv  : 1137
+halt  : 1
+fmov  : 10278798
+fadd  : 60203675
+fsub  : 54543851
+fmul  : 119280561
+finv  : 1517574
+fsqrt : 2197325
+fneg  : 2394971
+fabs  : 25985673
+ftoi  : 0
+itof  : 0
+floor : 0
+fbeq  : 11190249
+fbneq : 0
+fblt  : 273935
+fble  : 50354240
+flw   : 356478644
+fsw   : 78122605
+---total : 3773033668---
+
