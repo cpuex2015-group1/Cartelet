@@ -512,10 +512,10 @@ let output_format = ref "h" (* Hexstr Simulator Object Binary *)
 
 let rec print_by_byte bin_str =
     if String.length bin_str > 8 then
-        (Printf.printf "\"%s\", " (bin_to_hex (String.sub bin_str 0 8));
+        (Printf.printf "x\"%s\", " (bin_to_hex (String.sub bin_str 0 8));
         print_by_byte (String.sub bin_str 8 (String.length bin_str - 8)))
     else if String.length bin_str > 0 then
-        Printf.printf "\"%s\", " (bin_to_hex bin_str)
+        Printf.printf "x\"%s\", " (bin_to_hex bin_str)
     else
         ()
 
