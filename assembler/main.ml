@@ -587,7 +587,7 @@ let main' asms =
         ["00000011000000000000000000000000"] in
     match !output_format with
     | "h" -> output_format_hex prog; Printf.printf "\n"
-    | "s" -> Printf.eprintf "%d, %s\n" (List.length prog) (bin_to_hex (to_bin (List.length prog))); output_format_sim prog
+    | "s" -> Printf.eprintf "%d, %s\n" ((List.length prog) * 4) (bin_to_hex (to_bin ((List.length prog) * 4))); output_format_sim prog
     | "o" -> output_format_obj prog
     | _ -> raise (Failure (Printf.sprintf "Unknown output format: %s" !output_format))
 
