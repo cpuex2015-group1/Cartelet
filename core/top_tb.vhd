@@ -77,23 +77,22 @@
           signal receiver_out : receiver_out_type;
           signal sender_in : sender_in_type;
           signal sender_out : sender_out_type;
-          signal counter : std_logic_vector (7 downto 0) := x"46";
-          type inst_list_type is array (60 downto 0) of std_logic_vector (7 downto 0);
+          signal counter : std_logic_vector (7 downto 0) := x"38";
+          type inst_list_type is array (56 downto 0) of std_logic_vector (7 downto 0);
           signal inst_list : inst_list_type := (
-          x"01", x"00", x"00", x"0d", 
-x"08", x"20", x"00", x"01", 
-x"74", x"20", x"00", x"00", 
-x"08", x"21", x"00", x"02", 
-x"74", x"20", x"00", x"00", 
-x"08", x"21", x"00", x"02", 
-x"74", x"20", x"00", x"00", 
-x"08", x"21", x"00", x"02", 
-x"74", x"20", x"00", x"00", 
-x"08", x"21", x"00", x"02", 
-x"74", x"20", x"00", x"00", 
-x"08", x"21", x"00", x"02", 
-x"74", x"20", x"00", x"00", 
-x"7c", x"00", x"00", x"00", 
+          x"02", x"00", x"00", x"00",
+x"01", x"00", x"00", x"0b",
+x"20", x"00", x"00", x"00",
+x"08", x"80", x"00", x"0a",
+x"08", x"20", x"00", x"00",
+x"08", x"40", x"00", x"01",
+x"04", x"62", x"00", x"00",
+x"04", x"41", x"10", x"00",
+x"04", x"23", x"00", x"00",
+x"08", x"84", x"ff", x"ff",
+x"24", x"80", x"ff", x"fb",
+x"74", x"40", x"00", x"00",
+x"7c", x"00", x"00", x"00",
 x"03", x"00", x"00", x"00",
 x"ff"
           );

@@ -45,15 +45,26 @@ begin
     begin
         v := r;
 
-        v.alu_out := alu_out_init;
+        -- reset rs and output
+        if alu_in.reset_rs then
+            for i in r.rs'reverse_range loop
+                v.rs(i).busy := false;
+            end loop;
+            for i in r.alu_out.outputs'reverse_range loop
+                v.alu_out.outputs(i).valid := false;
+            end loop;
+        end if;
+
+
 
         -- execute
         for i in r.alu_out.outputs'reverse_range loop
-            if not r.alu_out.outputs(i).valid then -- valid なものは占有されている
-                for j in r.rs'reverse_range loop
-                    if r.rs(j).busy and not r.rs(j).executing and not r.rs(j).lhs.busy and not r.rs(j).rhs.busy then
+            if not v.alu_out.outputs(i).valid then -- valid なものは占有されている
+                EXEC_L2: for j in r.rs'reverse_range loop
+                    -- v.rs(j).executing に注意
+                    if v.rs(j).busy and not v.rs(j).executing and not r.rs(j).lhs.busy and not r.rs(j).rhs.busy then
                         v.rs(j).executing := true;
-                        case v.rs(j).command is
+                        case r.rs(j).command is
                             when ALU_ADD =>
                                 tmp := std_logic_vector(unsigned(r.rs(j).lhs.value) + unsigned(r.rs(j).rhs.value));
 
@@ -61,11 +72,9 @@ begin
                                 v.alu_out.outputs(i).to_rob.valid := true;
                                 v.alu_out.outputs(i).to_rob.rtag := r.rs(j).rtag;
                                 v.alu_out.outputs(i).to_rob.value := tmp;
-                                v.alu_out.outputs(i).to_cdb.valid := true;
-                                v.alu_out.outputs(i).to_cdb.rtag := r.rs(j).rtag;
-                                v.alu_out.outputs(i).to_cdb.value := tmp;
                             when others =>
                         end case;
+                        exit EXEC_L2;
                     end if;
                 end loop;
             end if;
@@ -82,8 +91,7 @@ begin
                     end if;
                 end loop;
                 for j in r.alu_out.outputs'reverse_range loop
-                    -- to_rob, to_cdb はいずれ消す
-                    if r.alu_out.outputs(j).to_rob.rtag = alu_in.accepts(i).rtag then
+                    if v.alu_out.outputs(j).to_rob.rtag = alu_in.accepts(i).rtag then
                         v.alu_out.outputs(j).valid := false;
                     end if;
                 end loop;

@@ -32,33 +32,6 @@ architecture struct of sdu is
         rs => (others => rs_entry_init),
         sdu_out => sdu_out_init);
     signal r, rin : reg_type := reg_init;
-
-    function stdv2str(vec:std_logic_vector) return string is
-        variable str: string(vec'left+1 downto 1);
-    begin
-        for i in vec'reverse_range loop
-            if(vec(i)='U') then
-                str(i+1):='U';
-            elsif(vec(i)='X') then
-                str(i+1):='X';
-            elsif(vec(i)='0') then
-                str(i+1):='0';
-            elsif(vec(i)='1') then
-                str(i+1):='1';
-            elsif(vec(i)='Z') then
-                str(i+1):='Z';
-            elsif(vec(i)='W') then
-                str(i+1):='W';
-            elsif(vec(i)='L') then
-                str(i+1):='L';
-            elsif(vec(i)='H') then
-                str(i+1):='H';
-            else
-                str(i+1):='-';
-            end if;
-        end loop;
-        return str;
-    end;
 begin
     comb : process(r, sdu_in)
         variable v : reg_type := reg_init;
@@ -67,10 +40,21 @@ begin
     begin
         v := r;
 
+        v.sdu_out := sdu_out_init;
+
+        -- reset rs and output
+        if sdu_in.reset_rs then
+            for i in r.rs'reverse_range loop
+                v.rs(i).busy := false;
+            end loop;
+            v.sdu_out.to_rob.valid := false;
+        end if;
+
+
         -- busy or not
         v.sdu_out.free_count := (others => '0');
         for i in r.rs'range loop
-            if not(r.rs(i).busy) then
+            if not v.rs(i).busy then
                 v.sdu_out.free_count := std_logic_vector(unsigned(v.sdu_out.free_count) + 1);
             end if;
         end loop;
@@ -93,7 +77,8 @@ begin
 
         -- select one entry and execute
         EXEC_L1: for i in r.rs'range loop
-            if r.rs(i).busy and not r.rs(i).executing and not r.rs(i).reg.busy then
+            -- ユニットに早く入った順に出て行くので問題ない
+            if v.sdu_out.to_rob.valid = false and v.rs(i).busy and not r.rs(i).reg.busy then
                 v.rs(i).executing := true;
 
                 v.sdu_out.to_rob.valid := true;
@@ -125,7 +110,7 @@ begin
         for i in sdu_in.cdb'range loop
             if sdu_in.cdb(i).valid then
                 for j in r.rs'range loop
-                    if r.rs(j).reg.busy and r.rs(j).reg.rtag = sdu_in.cdb(i).rtag then
+                    if v.rs(j).reg.busy and v.rs(j).reg.rtag = sdu_in.cdb(i).rtag then
                         v.rs(j).reg.busy := false;
                         v.rs(j).reg.value := sdu_in.cdb(i).value;
                     end if;

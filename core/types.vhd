@@ -11,10 +11,11 @@ package types is
     constant ALU_RS_WIDTH : integer := 1;
     constant TAG_WIDTH : integer := 3;
 	constant CONCURRENCY : integer := 2;
+    constant IMM_LENGTH : integer := 16;
 
 
 
-    type rs_state_type is (rs_alu, rs_send, rs_recv, rs_halt, rs_others);
+    type rs_state_type is (rs_alu, rs_send, rs_recv, rs_branch, rs_memory, rs_halt, rs_others);
 
     type reg_file_entry_type is record
         busy : boolean;
@@ -153,15 +154,6 @@ package types is
         valid => false,
         rtag => (others => '0'),
         value => (others => '0'));
-    type alu_out_to_cdb_type is record
-        valid : boolean;
-        rtag : std_logic_vector(TAG_WIDTH downto 0);
-        value : std_logic_vector(31 downto 0);
-    end record;
-    constant alu_out_to_cdb_init : alu_out_to_cdb_type := (
-        valid => false,
-        rtag => (others => '0'),
-        value => (others => '0'));
 
     constant CMD_WIDTH : integer := 3;
     type alu_in_body_entry_type is record
@@ -188,23 +180,23 @@ package types is
     type alu_in_accepts_type is array(1 downto 0) of alu_in_accept_type;
     subtype accepts_type is alu_in_accepts_type;
     type alu_in_type is record
+        reset_rs : boolean;
         cdb : cdb_type;
         accepts : alu_in_accepts_type;
         inputs : alu_in_body_type;
     end record;
     constant alu_in_init : alu_in_type := (
+        reset_rs => false,
         cdb => cdb_init,
         accepts => (others => alu_in_accept_init),
         inputs => (others => alu_in_body_entry_init));
     type alu_out_body_entry_type is record
         valid : boolean;
         to_rob : alu_out_to_rob_type;
-        to_cdb : alu_out_to_cdb_type;
     end record;
     constant alu_out_body_entry_init : alu_out_body_entry_type := (
         valid => false,
-        to_rob => alu_out_to_rob_init,
-        to_cdb => alu_out_to_cdb_init);
+        to_rob => alu_out_to_rob_init);
     type alu_out_body_type is array(1 downto 0) of alu_out_body_entry_type;
     type alu_out_type is record
         free_count : std_logic_vector(ALU_RS_WIDTH downto 0);
@@ -220,6 +212,55 @@ package types is
             alu_out : out alu_out_type);
     end component;
 
+
+
+
+    -- branch unit
+    type bru_in_body_entry_type is record
+        command : std_logic_vector(CMD_WIDTH downto 0);
+        rtag : std_logic_vector(TAG_WIDTH downto 0);
+        lhs : reg_file_entry_type;
+        rhs : reg_file_entry_type;
+        taken : boolean;
+        offset : std_logic_vector(IMM_LENGTH - 1 downto 0);
+    end record;
+    constant bru_in_body_entry_init : bru_in_body_entry_type := (
+        command => (others => '0'),
+        rtag => (others => '0'),
+        lhs => reg_file_entry_init,
+        rhs => reg_file_entry_init,
+        taken => false,
+        offset => (others => '0'));
+
+    type bru_in_type is record
+        reset_rs : boolean;
+        cdb : cdb_type;
+        accepts : accepts_type;
+        input : bru_in_body_entry_type;
+    end record;
+    constant bru_in_init : bru_in_type := (
+        reset_rs => false,
+        cdb => cdb_init,
+        accepts => (others => accept_init),
+        input => bru_in_body_entry_init);
+
+    type bru_out_type is record
+        free_count : std_logic_vector(0 downto 0);
+        output : alu_out_body_entry_type;
+    end record;
+    constant bru_out_init : bru_out_type := (
+        free_count => "0",
+        output => alu_out_body_entry_init);
+
+    component bru is
+        port (
+            clk : in std_logic;
+            bru_in : in bru_in_type;
+            bru_out : out bru_out_type);
+    end component;
+
+
+
     type sdu_in_body_entry_type is record
         valid : boolean;
         rtag : std_logic_vector(TAG_WIDTH downto 0);
@@ -231,6 +272,7 @@ package types is
         reg => reg_file_entry_init);
     type sdu_in_body_type is array(1 downto 0) of sdu_in_body_entry_type;
     type sdu_in_type is record
+        reset_rs : boolean;
         inputs : sdu_in_body_type;
         cdb : cdb_type;
         accepts : accepts_type;
@@ -238,6 +280,7 @@ package types is
     subtype sdu_out_to_rob_type is alu_out_to_rob_type;
     alias sdu_out_to_rob_init is alu_out_to_rob_init;
     constant sdu_in_init : sdu_in_type := (
+        reset_rs => false,
         inputs => (others => sdu_in_body_entry_init),
         cdb => cdb_init,
         accepts => (others => accept_init));
@@ -305,12 +348,20 @@ package types is
     constant CMD_DLOAD : std_logic_vector(7 downto 0) := x"02";
     constant CMD_EXEC  : std_logic_vector(7 downto 0) := x"03";
 
-    constant OP_NOP  : std_logic_vector(5 downto 0) := "000000";
-    constant OP_ADD  : std_logic_vector(5 downto 0) := "000001";
-    constant OP_ADDI : std_logic_vector(5 downto 0) := "000010";
-    constant OP_SEND : std_logic_vector(5 downto 0) := "011101";
-    constant OP_RECV : std_logic_vector(5 downto 0) := "011110";
-    constant OP_HALT : std_logic_vector(5 downto 0) := "011111";
+    constant OP_NOP   : std_logic_vector(5 downto 0) := "000000";
+    constant OP_ADD   : std_logic_vector(5 downto 0) := "000001";
+    constant OP_ADDI  : std_logic_vector(5 downto 0) := "000010";
+    constant OP_SEND  : std_logic_vector(5 downto 0) := "011101";
+    constant OP_RECV  : std_logic_vector(5 downto 0) := "011110";
+    constant OP_HALT  : std_logic_vector(5 downto 0) := "011111";
+    constant OP_BEQ   : std_logic_vector(5 downto 0) := "001000";
+    constant OP_BNEQ  : std_logic_vector(5 downto 0) := "001001";
+    constant OP_BLT   : std_logic_vector(5 downto 0) := "001010";
+    constant OP_BLE   : std_logic_vector(5 downto 0) := "001011";
+    constant OP_FBEQ  : std_logic_vector(5 downto 0) := "101000";
+    constant OP_FBNEQ : std_logic_vector(5 downto 0) := "101001";
+    constant OP_FBLT  : std_logic_vector(5 downto 0) := "101010";
+    constant OP_FBLE  : std_logic_vector(5 downto 0) := "101011";
 
     constant ALU_NOP  : std_logic_vector(3 downto 0) := "0000";
     constant ALU_ADD  : std_logic_vector(3 downto 0) := "0001";
@@ -326,6 +377,16 @@ package types is
     constant FPU_NEG  : std_logic_vector(3 downto 0) := "0100";
     constant FPU_ABS  : std_logic_vector(3 downto 0) := "0101";
     constant FPU_SQRT : std_logic_vector(3 downto 0) := "0110";
+
+    constant BRU_NOP  : std_logic_vector(3 downto 0) := "0000";
+    constant BRU_EQ   : std_logic_vector(3 downto 0) := "0001";
+    constant BRU_NEQ  : std_logic_vector(3 downto 0) := "0010";
+    constant BRU_LT   : std_logic_vector(3 downto 0) := "0011";
+    constant BRU_LE   : std_logic_vector(3 downto 0) := "0100";
+    constant BRU_FEQ  : std_logic_vector(3 downto 0) := "1001";
+    constant BRU_FNEQ : std_logic_vector(3 downto 0) := "1010";
+    constant BRU_FLT  : std_logic_vector(3 downto 0) := "1011";
+    constant BRU_FLE  : std_logic_vector(3 downto 0) := "1100";
 
 
     function stdv2str(vec:std_logic_vector) return string is
