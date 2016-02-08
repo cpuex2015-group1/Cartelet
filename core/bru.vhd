@@ -91,21 +91,6 @@ begin
         end if;
 
 
-        -- accepted by arbiter
-        for i in bru_in.accepts'reverse_range loop
-            if bru_in.accepts(i).valid then
-                for j in r.rs'reverse_range loop
-                    if r.rs(j).rtag = bru_in.accepts(i).rtag then
-                        v.rs(j).busy := false;
-                        v.rs(j).executing := false;
-                    end if;
-                end loop;
-                if r.bru_out.output.to_rob.rtag = bru_in.accepts(i).rtag then
-                    v.bru_out.output.to_rob.valid := false;
-                end if;
-            end if;
-        end loop;
-
         -- insert into RS
         INSERT_L2: for j in r.rs'reverse_range loop
             if bru_in.input.command /= BRU_NOP and not rs_written and not v.rs(j).busy then
@@ -141,6 +126,21 @@ begin
         for i in r.rs'reverse_range loop
             if not v.rs(i).busy then
                 v.bru_out.free_count := std_logic_vector(unsigned(v.bru_out.free_count) + 1);
+            end if;
+        end loop;
+
+        -- accepted by arbiter
+        for i in bru_in.accepts'reverse_range loop
+            if bru_in.accepts(i).valid then
+                for j in r.rs'reverse_range loop
+                    if v.rs(j).rtag = bru_in.accepts(i).rtag then
+                        v.rs(j).busy := false;
+                        v.rs(j).executing := false;
+                    end if;
+                end loop;
+                if v.bru_out.output.to_rob.rtag = bru_in.accepts(i).rtag then
+                    v.bru_out.output.to_rob.valid := false;
+                end if;
             end if;
         end loop;
 

@@ -31,7 +31,7 @@ architecture struct of cpu is
     signal pmem_we : pmem_we_type;
     signal pmem_din : pmem_din_type;
 
-    type rtype_type is (rtype_float, rtype_send, rtype_branch, rtype_store, rtype_load, rtype_halt, rtype_others);
+    type rtype_type is (rtype_float, rtype_send, rtype_branch, rtype_jump, rtype_jal, rtype_store, rtype_load, rtype_halt, rtype_others);
 
     type rob_entry_type is record
         valid : boolean;
@@ -46,7 +46,7 @@ architecture struct of cpu is
         rtype => rtype_others,
         reg_num => (others => '0'),
         value => (others => '0'));
-    type rob_entries_type is array((2 ** (TAG_WIDTH + 1) - 1) downto 0) of rob_entry_type;
+    type rob_entries_type is array((2 ** TAG_LENGTH - 1) downto 0) of rob_entry_type;
     type rob_type is record
         entries : rob_entries_type;
         head : std_logic_vector(TAG_WIDTH downto 0);
@@ -69,27 +69,30 @@ architecture struct of cpu is
         valid => false,
         fresh => false);
 
+    type fetch_count_type is array(3 downto 0) of integer;
+
     type fetch_decode_type is record
-        first : integer;
+        first : fetch_count_type;
         pc : std_logic_vector(PMEM_ADDR_WIDTH downto 0);
     end record;
     constant fetch_decode_init : fetch_decode_type := (
-        first => 0,
+        first => (others => 0),
         pc => (others => '0'));
 
     type insts_type is array(1 downto 0) of std_logic_vector(31 downto 0);
 
-    constant PMEM_BUFF_WIDTH : integer := 3;
-    type pmem_buff_type is array(2 ** PMEM_BUFF_WIDTH - 1 downto 0) of std_logic_vector(31 downto 0);
+    constant PMEM_BUFF_LENGTH : integer := 3;
+    type pmem_buff_type is array(2 ** PMEM_BUFF_LENGTH - 1 downto 0) of std_logic_vector(31 downto 0);
     signal pmem_buff : pmem_buff_type := (others => (others => '0'));
 
-    type fetch_count_type is array(3 downto 0) of integer;
-
     type reg_type is record
+        ZA : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+        ZD : std_logic_vector(31 downto 0);
+        zd_enable : boolean;
+        XWA : std_logic;
         pmem_we : pmem_we_type;
         pmem_addr : pmem_addr_type;
         pmem_din : pmem_din_type;
-        memory_out : memory_ctl_in_type;
         cpu_state : cpu_state_type;
         prev_recv : receiver_out_type;
         buff32 : buff32_type;
@@ -104,6 +107,7 @@ architecture struct of cpu is
         alu_in : alu_in_type;
         sdu_in : sdu_in_type;
         bru_in : bru_in_type;
+        mcu_in : mcu_in_type;
         cpu_out : cpu_out_type;
         fetch_decode : fetch_decode_type;
         fetch_count : fetch_count_type;
@@ -111,6 +115,7 @@ architecture struct of cpu is
         alu_ic : integer;
         bru_ic : integer;
         sdu_ic : integer;
+        mcu_ic : integer;
         insts : insts_type;
         pmem_dout : pmem_dout_type;
         stall_exec_schedule : std_logic_vector(3 downto 0);
@@ -121,10 +126,13 @@ architecture struct of cpu is
         pc : std_logic_vector(PMEM_ADDR_WIDTH downto 0);
     end record;
     constant reg_init : reg_type := (
+        ZA => (others => '0'),
+        ZD => (others => '0'),
+        zd_enable => false,
+        XWA => '1',
         pmem_we => (others => (others => '0')),
         pmem_addr => (others => (others => '0')),
         pmem_din => (others => (others => '0')),
-        memory_out => memory_ctl_in_init,
         cpu_state => ready,
         prev_recv => receiver_out_init,
         buff32 => buff32_init,
@@ -139,6 +147,7 @@ architecture struct of cpu is
         alu_in => alu_in_init,
         sdu_in => sdu_in_init,
         bru_in => bru_in_init,
+        mcu_in => mcu_in_init,
         cpu_out => cpu_out_init,
         fetch_decode => fetch_decode_init,
         fetch_count => (others => 0),
@@ -146,6 +155,7 @@ architecture struct of cpu is
         alu_ic => 0,
         bru_ic => 0,
         sdu_ic => 0,
+        mcu_ic => 0,
         insts => (others => (others => '0')),
         pmem_dout => (others => (others => '0')),
         stall_exec_schedule => (others => '0'),
@@ -161,6 +171,8 @@ architecture struct of cpu is
     signal sdu_out : sdu_out_type := sdu_out_init;
     signal bru_in : bru_in_type := bru_in_init;
     signal bru_out : bru_out_type := bru_out_init;
+    signal mcu_in : mcu_in_type := mcu_in_init;
+    signal mcu_out : mcu_out_type := mcu_out_init;
     signal cdb : cdb_type := cdb_init;
     signal accepts : accepts_type := (others => accept_init);
     signal reset_rs : boolean;
@@ -189,22 +201,31 @@ begin
         clk => clk,
         bru_in => bru_in,
         bru_out => bru_out);
+    mcu1 : mcu port map (
+        clk => clk,
+        mcu_in => mcu_in,
+        mcu_out => mcu_out);
 
     alu_in.cdb <= cdb;
     sdu_in.cdb <= cdb;
     bru_in.cdb <= cdb;
+    mcu_in.cdb <= cdb;
 
     alu_in.accepts <= accepts;
     sdu_in.accepts <= accepts;
     bru_in.accepts <= accepts;
+    mcu_in.accepts <= accepts;
 
     alu_in.reset_rs <= reset_rs;
     sdu_in.reset_rs <= reset_rs;
     bru_in.reset_rs <= reset_rs;
+    mcu_in.reset_rs <= reset_rs;
 
-    comb : process (cpu_in, r, alu_out, sdu_out, bru_out, pmem_dout)
+    mcu_in.ZD <= cpu_in.ZD;
+
+
+    comb : process (cpu_in, r, alu_out, sdu_out, bru_out, mcu_out, pmem_dout)
         variable v : reg_type := reg_init;
-        variable rob_head_ready : boolean := true;
         type rob_wb_entry_type is record
             valid : boolean;
             completed : boolean;
@@ -240,6 +261,15 @@ begin
         v.prev_recv := cpu_in.recv;
         v.pmem_we := (others => "0");
         v.reset_rs := false;
+        v.ZA := (others => '0');
+        v.ZD := (others => '0');
+        v.zd_enable := false;
+        v.XWA := '1';
+
+        v.alu_in := alu_in_init;
+        v.sdu_in := sdu_in_init;
+        v.bru_in := bru_in_init;
+        v.mcu_in := mcu_in_init;
 
 
 
@@ -282,8 +312,10 @@ begin
                             v.pbtl := 0;
                             v.stall_exec_schedule := (others => '0');
                             v.stall_fetch_schedule := (others => '0');
-                            v.fetch_count := (0 => 2, others => 0);
+--                            v.fetch_count := (2 => 2, others => 0);
                             v.cpu_state := running;
+
+			    v.buff32 := buff32_init;
                         when others =>
                     end case;
                 end if;
@@ -304,9 +336,9 @@ begin
             when dloading =>
                 if unsigned(r.load_counter) < unsigned(r.load_size) then
                     if r.buff32.fresh then
-                        v.memory_out.data := r.buff32.data;
-                        v.memory_out.addr := r.load_counter(SRAM_ADDR_WIDTH downto 0);
-                        v.memory_out.we := true;
+                        v.ZD := r.buff32.data;
+                        v.ZA := r.load_counter(SRAM_ADDR_WIDTH downto 0);
+                        v.XWA := '0';
                     end if;
                 else
                     v.cpu_state := ready;
@@ -323,94 +355,145 @@ begin
                 end loop;
                 v.fetch_count(r.fetch_count'length - 1) := 0;
 
+                -- shift first
+                for i in 0 to r.fetch_decode.first'length - 2 loop
+                    v.fetch_decode.first(i) := r.fetch_decode.first(i + 1);
+                end loop;
+                v.fetch_decode.first(r.fetch_decode.first'length - 1) := 0;
+
                 -- sender に送り続けるのを防ぐため
                 v.cpu_out.send.go := false;
 
 
                 ---- complete
                 -- complete rob entry
-                rob_head_ready := true;
+		index := to_integer(unsigned(r.rob.head));
                 COMPLETE_L1: for i in 0 to 1 loop -- いくつ同時に complete させるかここで決める
-                    index := to_integer(unsigned(v.rob.head));
                     if r.rob.entries(index).valid and r.rob.entries(index).completed then
-                        v.pc := std_logic_vector(unsigned(v.pc) + 1);
                         if r.rob.entries(index).rtype = rtype_halt then
                             if i = 0 then -- halt は rob の先頭に来たときだけ有効
-                                v := reg_init; -- まっさらにする
+				v.cpu_state := ready;
                             end if;
-                        elsif r.rob.entries(index).rtype = rtype_branch then
-                            if r.rob.entries(index).value(31) = '0' then -- 正しく分岐している
-                                v.rob.entries(index).valid := false;
-                                v.rob.entries(index).completed := false;
-                                v.rob.head := std_logic_vector(unsigned(v.rob.head) + 1);
-                            else -- 間違えた
-                                -- プログラムバッファを空にする
-                                v.pbhd := 0;
-                                v.pbtl := 0;
-                                -- NOTE: v.pc がすでに +1 されていることに注意
-                                -- NOTE: ここは、pmem の幅が 15bit だから正しい
-                                -- 16bit より大きくなったらちゃんと符号拡張しなければならない
-                                tmp_pc := std_logic_vector(signed('0' & v.pc) + signed(v.rob.entries(index).value(PMEM_ADDR_WIDTH + 1 downto 0)));
-                                v.fetch_pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
-                                v.pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
+			else
+			    v.pc := std_logic_vector(unsigned(v.pc) + 1);
+			    v.rob.entries(index).valid := false;
+			    v.rob.entries(index).completed := false;
 
-                                v.stall_exec_schedule := "1111";
-                                v.stall_fetch_schedule := "0000";
-                                fetch_pc_updated := true;
+			    if r.rob.entries(index).rtype = rtype_branch then
+				if r.rob.entries(index).value(31) = '0' then -- 正しく分岐している
+				    v.rob.entries(index).valid := false;
+				    v.rob.entries(index).completed := false;
+				else -- 間違えた
+				    -- プログラムバッファを空にする
+				    v.pbhd := 0;
+				    v.pbtl := 0;
+				    -- NOTE: v.pc がすでに +1 されていることに注意
+				    -- NOTE: ここは、pmem の幅が 15bit だから正しい
+				    -- 16bit より大きくなったらちゃんと符号拡張しなければならない
+				    tmp_pc := std_logic_vector(signed('0' & v.pc) + signed(r.rob.entries(index).value(PMEM_ADDR_WIDTH + 1 downto 0)));
+				    v.fetch_pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
+				    v.pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
 
-                                -- rob も空にする
-                                v.rob.head := (others => '0');
-                                v.rob.tail := (others => '0');
-                                v.rob.entries := (others => rob_entry_init);
+				    v.stall_exec_schedule := "1111";
+				    fetch_pc_updated := true;
 
-                                -- rs も空にする
-                                v.reset_rs := true;
+				    -- rob も空にする
+				    v.rob.tail := (others => '0');
+				    v.rob.entries := (others => rob_entry_init);
 
-                                -- busy な reg も解放する
-                                for j in r.regs'reverse_range loop
-                                    v.regs(j).busy := false;
-                                end loop;
+				    -- rs も空にする
+				    v.reset_rs := true;
 
-                                exit COMPLETE_L1;
-                            end if;
-                        else
-                            if r.rob.entries(index).rtype = rtype_send and not cpu_in.sender_busy then
-                                -- send
-                                v.cpu_out.send.data := v.rob.entries(index).value(7 downto 0);
-                                v.cpu_out.send.go := true;
-                            elsif index = to_integer(unsigned(r.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
-                                -- reg へ書き戻し
-                                -- TODO: floating 区別
-                                v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
-                                v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).value := r.rob.entries(index).value;
-                            end if;
+				    -- busy な reg も解放する
+				    for j in r.regs'reverse_range loop
+					v.regs(j).busy := false;
+				    end loop;
 
-                            v.rob.entries(index).valid := false;
-                            v.rob.entries(index).completed := false;
-                            v.rob.head := std_logic_vector(unsigned(v.rob.head) + 1);
-                        end if;
+				    exit COMPLETE_L1;
+				end if;
+			    elsif r.rob.entries(index).rtype = rtype_jump or r.rob.entries(index).rtype = rtype_jal then -- TODO: あまりにも効率が悪い
+				-- jr, jal
+				-- プログラムバッファを空にする
+				v.pbhd := 0;
+				v.pbtl := 0;
+
+				-- NOTE: ここが branch と違う
+				-- jal なら regs(31) に pc 待避
+                                if r.rob.entries(index).rtype = rtype_jal then
+                                    if index = to_integer(unsigned(r.regs(31).rtag)) then
+                                        v.regs(31).busy := false;
+                                    end if;
+				    v.regs(31).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
+				    v.regs(31).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
+				end if;
+
+				v.fetch_pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+				v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+
+
+				v.stall_exec_schedule := "1111";
+				fetch_pc_updated := true;
+
+				-- rob も空にする
+				v.rob.tail := (others => '0');
+				v.rob.entries := (others => rob_entry_init);
+
+				-- rs も空にする
+				v.reset_rs := true;
+
+				-- busy な reg も解放する
+				for j in r.regs'reverse_range loop
+				    v.regs(j).busy := false;
+				end loop;
+
+				exit COMPLETE_L1;
+			    else
+				if r.rob.entries(index).rtype = rtype_send and not cpu_in.sender_busy then
+				    -- send
+				    v.cpu_out.send.data := v.rob.entries(index).value(7 downto 0);
+				    v.cpu_out.send.go := true;
+				elsif r.rob.entries(index).rtype = rtype_store then
+				    -- ここで本当にメモリへ書き込む
+				    v.mcu_in.exec_store(i).valid := true;
+				    v.mcu_in.exec_store(i).buff_index := r.rob.entries(index).value(MCU_STORE_BUFF_WIDTH downto 0);
+                                else
+				    -- reg へ書き戻し
+				    -- alu 命令と load
+				    -- TODO: floating 区別
+                                    if index = to_integer(unsigned(r.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
+                                        v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
+                                    end if;
+				    v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).value := r.rob.entries(index).value;
+				end if;
+			    end if;
+			    index := to_integer(to_unsigned(index + 1, TAG_LENGTH));
+			end if;
                     else
                         exit COMPLETE_L1;
                     end if;
                 end loop;
 
+		if fetch_pc_updated then
+                    v.rob.head := (others => '0');
+                else
+		    v.rob.head := std_logic_vector(to_unsigned(index, TAG_LENGTH));
+		end if;
+
                 ---- decode & issue
                 -- ここでの issue_count は *前の* クロックで実行した命令数
-                v.alu_in := alu_in_init;
-                v.sdu_in := sdu_in_init;
-                v.bru_in := bru_in_init;
                 if v.stall_exec_schedule(0) = '0' then
 
                     -- 実行対象命令取得
                     -- TODO: validation (stall_exec_schedule でよい気もするが branch 実装時に考えよう)
-                    v.insts(0) := pmem_buff(to_integer(to_unsigned(r.pbhd, PMEM_BUFF_WIDTH)));
-                    v.insts(1) := pmem_buff(to_integer(to_unsigned(r.pbhd + 1, PMEM_BUFF_WIDTH)));
+                    v.insts(0) := pmem_buff(to_integer(to_unsigned(r.pbhd, PMEM_BUFF_LENGTH)));
+                    v.insts(1) := pmem_buff(to_integer(to_unsigned(r.pbhd + 1, PMEM_BUFF_LENGTH)));
 
 
                     v.issue_count := 0;
                     v.alu_ic := 0;
                     v.bru_ic := 0;
                     v.sdu_ic := 0;
+                    v.mcu_ic := 0;
                     for i in r.insts'reverse_range loop -- insts'range だと降順
                         decode(v.insts(i), op);
                         if unsigned(r.rob.tail) + i + 1 /= unsigned(r.rob.head) and head_issued then -- ここのチェックは r で、今のクロックのrobの状態は反映していないので分岐ミスなどでrobが消えていた時は上のstall_exec_scheduleでバリデーションする
@@ -476,21 +559,97 @@ begin
                                     else
                                         head_issued := false;
                                     end if;
+                                when rs_memory =>
+                                    if unsigned(mcu_out.free_count) > v.mcu_ic then
+                                        v.mcu_in.inputs(v.mcu_ic).command := op.command;
+                                        v.mcu_in.inputs(v.mcu_ic).rtag := v.rob.tail;
+                                        -- lhs : address
+                                        -- imm : displacement
+                                        -- rhs : data
+                                        v.mcu_in.inputs(v.mcu_ic).imm := op.imm;
+                                        if op.opcode = OP_SW then
+                                            v.mcu_in.inputs(v.mcu_ic).lhs := v.regs(to_integer(unsigned(op.reg1)));
+                                            v.mcu_in.inputs(v.mcu_ic).rhs := v.regs(to_integer(unsigned(op.reg2)));
+                                        else
+                                            v.mcu_in.inputs(v.mcu_ic).lhs := v.regs(to_integer(unsigned(op.reg2)));
+                                            v.mcu_in.inputs(v.mcu_ic).rhs.busy := false;
+                                            v.mcu_in.inputs(v.mcu_ic).rhs.rtag := (others => '-');
+                                            v.mcu_in.inputs(v.mcu_ic).rhs.value := (others => '-');
+                                        end if;
+
+                                        if op.opcode = OP_LW then
+                                            v.regs(to_integer(unsigned(op.reg1))).busy := true;
+                                            v.regs(to_integer(unsigned(op.reg1))).rtag := v.rob.tail;
+                                        end if;
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
+                                        if op.opcode = OP_SW then
+                                            v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_store;
+                                            v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := (others => '-');
+                                        else
+                                            v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_load;
+                                            v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := op.reg1;
+                                        end if;
+                                        v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+
+                                        v.mcu_ic := v.mcu_ic + 1;
+                                    else
+                                        head_issued := false;
+                                    end if;
+				when rs_jump =>
+				    -- ALU に入れる
+				    -- ジャンプ先のアドレスを知りたいだけなので、レジスタの値解決ができればそれでいい
+				    -- reg1 + 0 を計算することで代用している
+                                    if unsigned(alu_out.free_count) > v.alu_ic then
+                                        v.alu_in.inputs(v.alu_ic).command := ALU_ADD;
+                                        v.alu_in.inputs(v.alu_ic).rtag := v.rob.tail;
+                                        v.alu_in.inputs(v.alu_ic).lhs := v.regs(to_integer(unsigned(op.reg1))); -- そのクロックで書き戻された値を使いたいからv
+					v.alu_in.inputs(v.alu_ic).rhs.busy := false;
+					v.alu_in.inputs(v.alu_ic).rhs.rtag := (others => '-');
+					v.alu_in.inputs(v.alu_ic).rhs.value(31 downto 0) := (others => '0');
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := (others => '-');
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_jump;
+                                        v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+
+                                        v.alu_ic := v.alu_ic + 1;
+                                    else
+                                        head_issued := false;
+                                    end if;
+				when rs_jal =>
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).completed := true;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_jal;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).value(25 downto 0) := op.addr;
+
+				    v.regs(31).busy := true;
+				    v.regs(31).rtag := v.rob.tail;
+
+				    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+
+                                    v.issue_count := v.issue_count + 1;
                                 when rs_halt =>
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).completed := true;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_halt;
+
+				    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+
                                     v.issue_count := v.issue_count + 1;
                                 when others =>
                                     head_issued := false;
                             end case;
                         end if;
                     end loop;
-                    v.issue_count := v.issue_count + v.alu_ic + v.sdu_ic + v.bru_ic;
+                    v.issue_count := v.issue_count + v.alu_ic + v.sdu_ic + v.bru_ic + v.mcu_ic;
 
                     -- プログラムバッファの先頭を進める
-                    v.pbhd := to_integer(to_unsigned(r.pbhd + v.issue_count, PMEM_BUFF_WIDTH));
+                    v.pbhd := to_integer(to_unsigned(r.pbhd + v.issue_count, PMEM_BUFF_LENGTH));
                 end if;
 
                 ---- executed
@@ -527,6 +686,20 @@ begin
 
                         v.accepts(i).valid := true;
                         v.accepts(i).rtag := bru_out.output.to_rob.rtag;
+                    elsif mcu_out.outputs(i).valid then
+                        if mcu_out.outputs(i).to_rob.valid then -- mcu では to_rob.valid を cdb への書き込みフラグにしている
+                            v.cdb(i).valid := true;
+                            v.cdb(i).rtag := mcu_out.outputs(i).to_rob.rtag;
+                            v.cdb(i).value := mcu_out.outputs(i).to_rob.value;
+                        end if;
+
+                        rob_wb(i).valid := true;
+                        rob_wb(i).completed := true;
+                        rob_wb(i).rtag := mcu_out.outputs(i).to_rob.rtag;
+                        rob_wb(i).value := mcu_out.outputs(i).to_rob.value;
+
+                        v.accepts(i).valid := true;
+                        v.accepts(i).rtag := mcu_out.outputs(i).to_rob.rtag;
                     end if;
                 end loop;
 
@@ -543,55 +716,67 @@ begin
                 -- いくつバッファに入れられるか指定
                 if not fetch_pc_updated then
                     -- 分岐ミスでfetch_pc が更新されていないときにここで更新する
-                    v.pbtl := to_integer(to_unsigned(r.pbtl + r.fetch_count(0), PMEM_BUFF_WIDTH));
-                    sum := to_integer(to_unsigned(r.pbtl + r.fetch_count(0) + r.fetch_count(1) + r.fetch_count(2) + r.fetch_count(3), PMEM_BUFF_WIDTH));
+                    v.pbtl := to_integer(to_unsigned(r.pbtl + r.fetch_count(0), PMEM_BUFF_LENGTH));
+                    sum := to_integer(to_unsigned(r.pbtl + r.fetch_count(0) + r.fetch_count(1) + r.fetch_count(2) + r.fetch_count(3), PMEM_BUFF_LENGTH));
                     if sum < v.pbhd then
                         if v.pbhd - sum > 3 then
-                            v.fetch_count(3) := 2;
+                            v.fetch_count(2) := 2;
                         elsif v.pbhd - sum > 2 then
-                            v.fetch_count(3) := 1;
+                            v.fetch_count(2) := 1;
                         else
-                            v.fetch_count(3) := 0;
+                            v.fetch_count(2) := 0;
                         end if;
                     elsif sum > v.pbhd then
-                        if 8 + v.pbhd - sum > 3 then -- 8 = 2 ** PMEM_BUFF_WIDTH
-                            v.fetch_count(3) := 2;
+                        if 8 + v.pbhd - sum > 3 then -- 8 = 2 ** PMEM_BUFF_LENGTH
+                            v.fetch_count(2) := 2;
                         elsif 8 + v.pbhd - sum > 2 then
-                            v.fetch_count(3) := 1;
+                            v.fetch_count(2) := 1;
                         else
-                            v.fetch_count(3) := 0;
+                            v.fetch_count(2) := 0;
                         end if;
                     else -- その他は初期状態しかない（ように上で調整している）
-                        v.fetch_count(3) := 2;
+                        v.fetch_count(2) := 2;
                     end if;
-                    v.fetch_pc := std_logic_vector(to_unsigned(to_integer(unsigned(r.fetch_pc)) + v.fetch_count(3), PMEM_ADDR_WIDTH + 1)); -- 次に与えるアドレスの一つ目
+                    v.fetch_pc := std_logic_vector(to_unsigned(to_integer(unsigned(r.fetch_pc)) + r.fetch_count(2), PMEM_ADDR_WIDTH + 1)); -- 次に与えるアドレスの一つ目
                 else
-                    v.fetch_count := (3 => 2, others => 0);
+                    v.fetch_count := (2 => 2, others => 0);
                 end if;
 
                 -- 常に二つずつ持ってくる
-                if r.fetch_pc(0) = '0' then
-                    v.pmem_addr(0) := r.fetch_pc(PMEM_ADDR_WIDTH downto 1);
-                    v.pmem_addr(1) := r.fetch_pc(PMEM_ADDR_WIDTH downto 1);
-                    v.fetch_decode.first := 0;
+                if v.fetch_pc(0) = '0' then
+                    v.pmem_addr(0) := v.fetch_pc(PMEM_ADDR_WIDTH downto 1);
+                    v.pmem_addr(1) := v.fetch_pc(PMEM_ADDR_WIDTH downto 1);
+                    v.fetch_decode.first(2) := 0;
                 else
-                    v.pmem_addr(1) := r.fetch_pc(PMEM_ADDR_WIDTH downto 1);
-                    v.pmem_addr(0) := std_logic_vector(unsigned(r.fetch_pc(PMEM_ADDR_WIDTH downto 1)) + 1);
-                    v.fetch_decode.first := 1;
+                    v.pmem_addr(1) := v.fetch_pc(PMEM_ADDR_WIDTH downto 1);
+                    v.pmem_addr(0) := std_logic_vector(unsigned(v.fetch_pc(PMEM_ADDR_WIDTH downto 1)) + 1);
+                    v.fetch_decode.first(2) := 1;
                 end if;
 
         end case;
 
-        pmem_din <= r.pmem_din;
-        pmem_we <= r.pmem_we;
-        pmem_addr <= r.pmem_addr;
         alu_in.inputs <= r.alu_in.inputs;
         sdu_in.inputs <= r.sdu_in.inputs;
         bru_in.input <= r.bru_in.input;
+        mcu_in.inputs <= r.mcu_in.inputs;
+        mcu_in.exec_store <= r.mcu_in.exec_store;
         accepts <= r.accepts;
-        cpu_out <= r.cpu_out;
+        cpu_out.send <= r.cpu_out.send;
+        cpu_out.receiver_pop <= r.cpu_out.receiver_pop;
         cdb <= r.cdb;
 
+        -- データ領域読み込みようにCPUから直にメモリへかけるようにする
+        if r.cpu_state /= running then
+            cpu_out.XWA <= v.XWA;
+            cpu_out.ZD <= v.ZD;
+            cpu_out.zd_enable <= v.zd_enable;
+            cpu_out.ZA <= v.ZA;
+        else
+            cpu_out.XWA <= mcu_out.XWA;
+            cpu_out.ZD <= mcu_out.ZD;
+            cpu_out.zd_enable <= mcu_out.zd_enable;
+            cpu_out.ZA <= mcu_out.ZA;
+        end if;
 
         reset_rs <= v.reset_rs; -- reset はすぐに
 
@@ -602,12 +787,15 @@ begin
         variable tmp : std_logic_vector(0 downto 0) := (others => '0');
     begin
         if rising_edge(clk) then
+            pmem_din <= rin.pmem_din;
+            pmem_we <= rin.pmem_we;
+            pmem_addr <= rin.pmem_addr;
             -- fetch してきたものをバッファへ入れる
             if rin.stall_fetch_schedule(0) = '0' then
                 for i in 0 to 1 loop
                     if i < rin.fetch_count(0) then
-                        tmp := std_logic_vector(to_unsigned(i + rin.fetch_decode.first, 1));
-                        pmem_buff(to_integer(to_unsigned(rin.pbtl + i, PMEM_BUFF_WIDTH))) <= pmem_dout(to_integer(unsigned(tmp)));
+                        tmp := std_logic_vector(to_unsigned(i + rin.fetch_decode.first(0), 1));
+                        pmem_buff(to_integer(to_unsigned(rin.pbtl + i, PMEM_BUFF_LENGTH))) <= pmem_dout(to_integer(unsigned(tmp)));
                     end if;
                 end loop;
             end if;

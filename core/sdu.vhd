@@ -59,25 +59,10 @@ begin
             end if;
         end loop;
 
-        -- check if write to the rob is accepted or not
-        for i in sdu_in.accepts'reverse_range loop
-            if sdu_in.accepts(i).valid then
-                if sdu_in.accepts(i).rtag = r.sdu_out.to_rob.rtag then
-                    v.sdu_out.to_rob.valid := false;
-                end if;
-
-                for j in r.rs'reverse_range loop
-                    if r.rs(i).rtag = sdu_in.accepts(i).rtag and r.rs(i).executing then
-                        v.rs(i).busy := false;
-                        v.rs(i).executing := false;
-                    end if;
-                end loop;
-            end if;
-        end loop;
-
         -- select one entry and execute
         EXEC_L1: for i in r.rs'range loop
             -- ユニットに早く入った順に出て行くので問題ない
+            -- TODO: 問題ある
             if v.sdu_out.to_rob.valid = false and v.rs(i).busy and not r.rs(i).reg.busy then
                 v.rs(i).executing := true;
 
@@ -113,6 +98,22 @@ begin
                     if v.rs(j).reg.busy and v.rs(j).reg.rtag = sdu_in.cdb(i).rtag then
                         v.rs(j).reg.busy := false;
                         v.rs(j).reg.value := sdu_in.cdb(i).value;
+                    end if;
+                end loop;
+            end if;
+        end loop;
+
+        -- check if write to the rob is accepted or not
+        for i in sdu_in.accepts'reverse_range loop
+            if sdu_in.accepts(i).valid then
+                if sdu_in.accepts(i).rtag = v.sdu_out.to_rob.rtag then
+                    v.sdu_out.to_rob.valid := false;
+                end if;
+
+                for j in r.rs'reverse_range loop
+                    if v.rs(i).rtag = sdu_in.accepts(i).rtag and v.rs(i).executing then
+                        v.rs(i).busy := false;
+                        v.rs(i).executing := false;
                     end if;
                 end loop;
             end if;

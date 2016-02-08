@@ -9,13 +9,18 @@ package types is
     constant SRAM_ADDR_WIDTH : integer := 19;
     constant ROB_ADDR_WIDTH : integer := 4;
     constant ALU_RS_WIDTH : integer := 1;
-    constant TAG_WIDTH : integer := 3;
+    constant MCU_RS_WIDTH : integer := 1;
 	constant CONCURRENCY : integer := 2;
+    constant TAG_LENGTH : integer := 4;
+    constant TAG_WIDTH : integer := TAG_LENGTH - 1;
     constant IMM_LENGTH : integer := 16;
+    constant IMM_WIDTH : integer := 15;
+    constant MCU_STORE_BUFF_WIDTH : integer := 1;
+    constant CACHE_WIDTH : integer := 2;
 
 
 
-    type rs_state_type is (rs_alu, rs_send, rs_recv, rs_branch, rs_memory, rs_halt, rs_others);
+    type rs_state_type is (rs_alu, rs_send, rs_recv, rs_branch, rs_jump, rs_jal, rs_memory, rs_halt, rs_others);
 
     type reg_file_entry_type is record
         busy : boolean;
@@ -75,57 +80,62 @@ package types is
     end component;
 
 
-    type memory_ctl_in_type is record
-        data : std_logic_vector(31 downto 0);
-        addr : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
-        we : boolean;
-    end record;
-    constant memory_ctl_in_init : memory_ctl_in_type := (
-        data => (others => '0'),
-        addr => (others => '0'),
-        we => false);
-    type memory_ctl_out_type is record
-        data_for_cpu  : std_logic_vector(31 downto 0);
-        data_for_sram : std_logic_vector(31 downto 0);
-        addr_for_cpu  : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
-        addr_for_sram : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
-        xwa : std_logic;
-    end record;
-    constant memory_ctl_out_init : memory_ctl_out_type := (
-        data_for_cpu => (others => '0'),
-        data_for_sram => (others => '0'),
-        addr_for_cpu => (others => '0'),
-        addr_for_sram => (others => '0'),
-        xwa => '0');
-    component memory_ctl is
-        port (
-            clk : in std_logic;
-            memory_ctl_in : in memory_ctl_in_type;
-            memory_ctl_out : out memory_ctl_out_type);
-    end component;
+--    type memory_ctl_in_type is record
+--        inputs : alu_in_body_type;
+--        data : std_logic_vector(31 downto 0);
+--        addr : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+--        we : boolean;
+--    end record;
+--    constant memory_ctl_in_init : memory_ctl_in_type := (
+--        data => (others => '0'),
+--        addr => (others => '0'),
+--        we => false);
+--    type memory_ctl_out_type is record
+--        data_for_cpu  : std_logic_vector(31 downto 0);
+--        data_for_sram : std_logic_vector(31 downto 0);
+--        addr_for_cpu  : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+--        addr_for_sram : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+--        xwa : std_logic;
+--    end record;
+--    constant memory_ctl_out_init : memory_ctl_out_type := (
+--        data_for_cpu => (others => '0'),
+--        data_for_sram => (others => '0'),
+--        addr_for_cpu => (others => '0'),
+--        addr_for_sram => (others => '0'),
+--        xwa => '0');
+--    component memory_ctl is
+--        port (
+--            clk : in std_logic;
+--            memory_ctl_in : in memory_ctl_in_type;
+--            memory_ctl_out : out memory_ctl_out_type);
+--    end component;
 
 
     type cpu_state_type is (ready, running, ploading, dloading);
     type cpu_in_type is record
         recv : receiver_out_type;
         sender_busy : boolean;
-        memory_din : std_logic_vector(31 downto 0);
-        memory_addr : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+        ZD : std_logic_vector(31 downto 0);
     end record;
     constant cpu_in_init : cpu_in_type := (
         recv => receiver_out_init,
         sender_busy => false,
-        memory_din => (others => '0'),
-        memory_addr => (others => '0'));
+        ZD => (others => '0'));
     type cpu_out_type is record
         receiver_pop : boolean;
         send : sender_in_type;
-        memory : memory_ctl_in_type;
+        ZD : std_logic_vector(31 downto 0);
+        zd_enable : boolean;
+        ZA : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+        XWA : std_logic;
     end record;
     constant cpu_out_init : cpu_out_type := (
         receiver_pop => false,
         send => sender_in_init,
-        memory => memory_ctl_in_init);
+        ZD => (others => '0'),
+        zd_enable => false,
+        ZA => (others => '0'),
+        XWA => '1');
     component cpu is
         port (
             clk : in std_logic;
@@ -320,6 +330,71 @@ package types is
             fpu_out : out fpu_out_type);
     end component;
 
+    type exec_store_entry_type is record
+        valid : boolean;
+        buff_index : std_logic_vector(MCU_STORE_BUFF_WIDTH downto 0);
+    end record;
+    constant exec_store_entry_init : exec_store_entry_type := (
+        valid => false,
+        buff_index => (others => '0'));
+
+    type exec_store_type is array(1 downto 0) of exec_store_entry_type; -- NOTE: 1clk でcomplete する命令数に応じて変える
+
+
+    type mcu_in_body_entry_type is record
+        command : std_logic_vector(CMD_WIDTH downto 0);
+        rtag : std_logic_vector(TAG_WIDTH downto 0);
+        imm : std_logic_vector(IMM_WIDTH downto 0);
+        lhs : reg_file_entry_type;
+        rhs : reg_file_entry_type;
+    end record;
+    constant mcu_in_body_entry_init : mcu_in_body_entry_type := (
+        command => (others => '0'),
+        rtag => (others => '0'),
+        imm => (others => '0'),
+        lhs => reg_file_entry_init,
+        rhs => reg_file_entry_init);
+    type mcu_in_body_type is array(1 downto 0) of mcu_in_body_entry_type;
+
+    type mcu_in_type is record
+        ZD : std_logic_vector(31 downto 0);
+        reset_rs : boolean;
+        cdb : cdb_type;
+        accepts : accepts_type;
+        inputs : mcu_in_body_type;
+        exec_store : exec_store_type;
+    end record;
+    constant mcu_in_init : mcu_in_type := (
+        ZD => (others => '0'),
+        reset_rs => false,
+        cdb => cdb_init,
+        accepts => (others => accept_init),
+        inputs => (others => mcu_in_body_entry_init),
+        exec_store => (others => exec_store_entry_init));
+
+    type mcu_out_type is record
+        free_count : std_logic_vector(MCU_RS_WIDTH downto 0);
+        outputs : alu_out_body_type;
+        ZA : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+        ZD : std_logic_vector(31 downto 0);
+        zd_enable : boolean;
+        XWA : std_logic;
+    end record;
+    constant mcu_out_init : mcu_out_type := (
+        free_count => (others => '0'),
+        outputs => (others => alu_out_body_entry_init),
+        ZA => (others => '0'),
+        ZD => (others => '0'),
+        zd_enable => false,
+        XWA => '1');
+
+    component mcu is
+        port (
+            clk : in std_logic;
+            mcu_in : in mcu_in_type;
+            mcu_out : out mcu_out_type);
+    end component;
+
 
     type op_type is record
         opcode : std_logic_vector(5 downto 0);
@@ -348,6 +423,7 @@ package types is
     constant CMD_DLOAD : std_logic_vector(7 downto 0) := x"02";
     constant CMD_EXEC  : std_logic_vector(7 downto 0) := x"03";
 
+
     constant OP_NOP   : std_logic_vector(5 downto 0) := "000000";
     constant OP_ADD   : std_logic_vector(5 downto 0) := "000001";
     constant OP_ADDI  : std_logic_vector(5 downto 0) := "000010";
@@ -358,10 +434,16 @@ package types is
     constant OP_BNEQ  : std_logic_vector(5 downto 0) := "001001";
     constant OP_BLT   : std_logic_vector(5 downto 0) := "001010";
     constant OP_BLE   : std_logic_vector(5 downto 0) := "001011";
+    constant OP_JR    : std_logic_vector(5 downto 0) := "001100";
+    constant OP_JAL   : std_logic_vector(5 downto 0) := "001101";
+    constant OP_LW    : std_logic_vector(5 downto 0) := "010000";
+    constant OP_SW    : std_logic_vector(5 downto 0) := "010001";
+
     constant OP_FBEQ  : std_logic_vector(5 downto 0) := "101000";
     constant OP_FBNEQ : std_logic_vector(5 downto 0) := "101001";
     constant OP_FBLT  : std_logic_vector(5 downto 0) := "101010";
     constant OP_FBLE  : std_logic_vector(5 downto 0) := "101011";
+
 
     constant ALU_NOP  : std_logic_vector(3 downto 0) := "0000";
     constant ALU_ADD  : std_logic_vector(3 downto 0) := "0001";
@@ -370,6 +452,7 @@ package types is
     constant ALU_SRL  : std_logic_vector(3 downto 0) := "0100";
     constant ALU_ADDU : std_logic_vector(3 downto 0) := "0101";
 
+
     constant FPU_NOP  : std_logic_vector(3 downto 0) := "0000";
     constant FPU_ADD  : std_logic_vector(3 downto 0) := "0001";
     constant FPU_MUL  : std_logic_vector(3 downto 0) := "0010";
@@ -377,6 +460,8 @@ package types is
     constant FPU_NEG  : std_logic_vector(3 downto 0) := "0100";
     constant FPU_ABS  : std_logic_vector(3 downto 0) := "0101";
     constant FPU_SQRT : std_logic_vector(3 downto 0) := "0110";
+
+
 
     constant BRU_NOP  : std_logic_vector(3 downto 0) := "0000";
     constant BRU_EQ   : std_logic_vector(3 downto 0) := "0001";
@@ -389,30 +474,9 @@ package types is
     constant BRU_FLE  : std_logic_vector(3 downto 0) := "1100";
 
 
-    function stdv2str(vec:std_logic_vector) return string is
-        variable str: string(vec'left+1 downto 1);
-    begin
-        for i in vec'reverse_range loop
-            if(vec(i)='U') then
-                str(i+1):='U';
-            elsif(vec(i)='X') then
-                str(i+1):='X';
-            elsif(vec(i)='0') then
-                str(i+1):='0';
-            elsif(vec(i)='1') then
-                str(i+1):='1';
-            elsif(vec(i)='Z') then
-                str(i+1):='Z';
-            elsif(vec(i)='W') then
-                str(i+1):='W';
-            elsif(vec(i)='L') then
-                str(i+1):='L';
-            elsif(vec(i)='H') then
-                str(i+1):='H';
-            else
-                str(i+1):='-';
-            end if;
-        end loop;
-        return str;
-    end;
+    constant MCU_NOP : std_logic_vector(3 downto 0) := "0000";
+    constant MCU_LW  : std_logic_vector(3 downto 0) := "0001";
+    constant MCU_SW  : std_logic_vector(3 downto 0) := "0010";
+
+
 end package;

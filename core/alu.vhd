@@ -81,23 +81,6 @@ begin
         end loop;
 
 
-        -- accepted by arbiter
-        for i in alu_in.accepts'reverse_range loop
-            if alu_in.accepts(i).valid then
-                for j in r.rs'reverse_range loop
-                    if r.rs(j).rtag = alu_in.accepts(i).rtag then
-                        v.rs(j).busy := false;
-                        v.rs(j).executing := false;
-                    end if;
-                end loop;
-                for j in r.alu_out.outputs'reverse_range loop
-                    if v.alu_out.outputs(j).to_rob.rtag = alu_in.accepts(i).rtag then
-                        v.alu_out.outputs(j).valid := false;
-                    end if;
-                end loop;
-            end if;
-        end loop;
-
         -- insert into RS
         for i in alu_in.inputs'reverse_range loop
             INSERT_L2: for j in r.rs'reverse_range loop
@@ -134,6 +117,23 @@ begin
         for i in v.rs'reverse_range loop
             if not(v.rs(i).busy) then
                 v.alu_out.free_count := std_logic_vector(unsigned(v.alu_out.free_count) + 1);
+            end if;
+        end loop;
+
+        -- accepted by arbiter
+        for i in alu_in.accepts'reverse_range loop
+            if alu_in.accepts(i).valid then
+                for j in r.rs'reverse_range loop
+                    if v.rs(j).rtag = alu_in.accepts(i).rtag then
+                        v.rs(j).busy := false;
+                        v.rs(j).executing := false;
+                    end if;
+                end loop;
+                for j in r.alu_out.outputs'reverse_range loop
+                    if v.alu_out.outputs(j).to_rob.rtag = alu_in.accepts(i).rtag then
+                        v.alu_out.outputs(j).valid := false;
+                    end if;
+                end loop;
             end if;
         end loop;
 

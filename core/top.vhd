@@ -52,7 +52,6 @@ architecture struct of top is
     signal iclk : std_logic;
     signal receiver_in : receiver_in_type := receiver_in_init;
     signal sender_out : sender_out_type := sender_out_init;
-    signal memory_ctl_out : memory_ctl_out_type := memory_ctl_out_init;
     signal cpu_in : cpu_in_type := cpu_in_init;
     signal cpu_out : cpu_out_type := cpu_out_init;
 begin
@@ -64,19 +63,18 @@ begin
     sender0 : sender generic map (wtime) port map (clk, cpu_out.send, sender_out);
     receiver0 : receiver generic map (wtime) port map (clk, receiver_in, cpu_in.recv);
     cpu0 : cpu port map (clk, cpu_in, cpu_out);
-    memory_ctl0 : memory_ctl port map (clk, cpu_out.memory, memory_ctl_out);
 
     cpu_in.sender_busy <= sender_out.busy;
-    cpu_in.memory_din <= memory_ctl_out.data_for_cpu;
-    cpu_in.memory_addr <= memory_ctl_out.addr_for_cpu;
     receiver_in.rs_rx <= RS_RX;
     receiver_in.pop <= cpu_out.receiver_pop;
 
     RS_TX <= sender_out.rs_tx;
 
-    ZD <= memory_ctl_out.data_for_sram;
-    ZA <= memory_ctl_out.addr_for_sram;
-    XWA <= memory_ctl_out.xwa;
+    cpu_in.ZD <= ZD;
+    ZD <= cpu_out.ZD when cpu_out.zd_enable = true else (others => 'Z');
+
+    ZA <= cpu_out.ZA;
+    XWA <= cpu_out.XWA;
 
     XE1 <= '0';
     E2A <= '1';
