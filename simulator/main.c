@@ -73,14 +73,6 @@ uint32_t finv_table2[1024];
 uint32_t fsqrt_table1[1024];
 uint32_t fsqrt_table2[1024];
 
-void handler(int signal)
-{
-  print_reg();
-  printf("\n");
-  print_statistics();
-  exit(0);
-}
-
 void printbin(uint32_t i)
 {
   int k;
@@ -166,6 +158,14 @@ void print_statistics()
   printf("flw   : %lld\n",flw_count);
   printf("fsw   : %lld\n",fsw_count);
   printf("---total : %lld---\n",inst_count);
+}
+
+void handler(int signal)
+{
+  print_reg();
+  printf("\n");
+  print_statistics();
+  exit(0);
 }
 
 void command_input()
