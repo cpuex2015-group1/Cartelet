@@ -2,7 +2,7 @@ open Asm
 
 external getfl : float -> int32 = "getfl"
 
-let server_mode = ref false
+(* let server_mode = ref false *)
 
 let stackset = ref S.empty (* すでにSaveされた変数の集合 (caml2html: emit_stackset) *)
 let stackmap = ref [] (* Saveされた変数の、スタックにおける位置 (caml2html: emit_stackmap) *)
@@ -282,21 +282,12 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      emit_1 oc "jr" reg_tmp p
   | Tail, CallDir(Id.L(x), ys, zs, p) -> (* 末尾呼び出し *)
      (match x with
-      | "min_caml_fabs" | "min_caml_abs_float" ->
-         g' oc (Tail, FAbs(List.hd zs, p))
-      | "min_caml_sqrt" ->
-	 g' oc (Tail, FSqrt(List.hd zs, p))
-      | "min_caml_int_of_float"
-      | "min_caml_truncate" ->
-	 g' oc (Tail, FToI(List.hd zs, p))
-      | "min_caml_float_of_int" ->
-	 g' oc (Tail, IToF(List.hd ys, p))
+      | "min_caml_fabs" | "min_caml_abs_float" | "min_caml_sqrt"
+      | "min_caml_int_of_float" | "min_caml_truncate" | "min_caml_float_of_int"
       | "min_caml_floor" ->
-	 g' oc (Tail, Floor(List.hd zs, p))
-      | "min_caml_read_int" when !server_mode ->
-	 g' oc (Tail, CallDir(Id.L("min_caml_read_int_byte"), ys, zs, p))
-      | "min_caml_read_float" when !server_mode ->
-	 g' oc (Tail, CallDir(Id.L("min_caml_read_float_byte"), ys, zs, p))
+	 assert false
+      | "min_caml_read_int" | "min_caml_read_float" when !(Virtual.server_mode) ->
+	 assert false
       | _ ->
 	 (g'_args oc [] ys zs p;
 	  emit_3 oc "beq" reg_zero reg_zero x p))
@@ -318,21 +309,12 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
        assert (a = "%unit" || a = reg_rv || a = freg_rv)
   | NonTail(a), CallDir(Id.L(x), ys, zs, p) ->
      (match x with
-      | "min_caml_fabs" | "min_caml_abs_float" ->
-         g' oc (NonTail(a), FAbs(List.hd zs, p))
-      | "min_caml_sqrt" ->
-	 g' oc (NonTail(a), FSqrt(List.hd zs, p))
-      | "min_caml_int_of_float"
-      | "min_caml_truncate" ->
-	 g' oc (NonTail(a), FToI(List.hd zs, p))
-      | "min_caml_float_of_int" ->
-	 g' oc (NonTail(a), IToF(List.hd ys, p))
+      | "min_caml_fabs" | "min_caml_abs_float" | "min_caml_sqrt"
+      | "min_caml_int_of_float" | "min_caml_truncate" | "min_caml_float_of_int"
       | "min_caml_floor" ->
-	 g' oc (NonTail(a), Floor(List.hd zs, p))
-      | "min_caml_read_int" when !server_mode ->
-	 g' oc (NonTail(a), CallDir(Id.L("min_caml_read_int_byte"), ys, zs, p))
-      | "min_caml_read_float" when !server_mode ->
-	 g' oc (NonTail(a), CallDir(Id.L("min_caml_read_float_byte"), ys, zs, p))
+	 assert false
+      | "min_caml_read_int" | "min_caml_read_float" when !(Virtual.server_mode) -> 
+	 assert false
       | _ ->
 	 begin
 	   g'_args oc [] ys zs p;

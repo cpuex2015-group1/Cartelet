@@ -76,6 +76,8 @@ let reg_hp = "%r28"  (* heap pointer *)
 let reg_sp = "%r29"  (* stack pointer *)
 let reg_ra = "%r31"  (* return address *)
 let is_reg x = (x.[0] = '%')
+let is_gpr x = (x.[1] = 'r')
+let is_fpr x = (x.[1] = 'f')
 
 (* super-tenuki *)
 let rec remove_and_uniq xs = function

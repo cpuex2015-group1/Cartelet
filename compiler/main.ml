@@ -1,6 +1,5 @@
 let limit = ref 1000
 let debug_level = ref Debug.Emit
-let server_mode = ref false
 
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
@@ -113,7 +112,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: m
     [("-inline", Arg.Set_int(Inline.threshold), "maximum size of functions inlined");
      ("-iter", Arg.Set_int(limit), "maximum number of optimizations iterated");
      ("-debug", Arg.String(fun s -> debug_level := Debug.level_of_string s), "output level for debugging");
-     ("-server", Arg.Unit(fun () -> Emit.server_mode := true), "toggle to server mode (use print_***_byte instead of print_***)")]
+     ("-server", Arg.Unit(fun () -> Virtual.server_mode := true), "toggle to server mode (use print_***_byte instead of print_***)")]
     (fun s -> files := !files @ [s])
     ("Mitou Min-Caml Compiler (C) Eijiro Sumii\n" ^
      Printf.sprintf "usage: %s [-inline m] [-iter n] ...filenames without \".ml\"..." Sys.argv.(0));

@@ -39,6 +39,7 @@ shuffle spill spill2 spill3 join-stack join-stack2 join-stack3 \
 join-reg join-reg2 non-tail-if non-tail-if2 \
 inprod inprod-rec inprod-loop matmul matmul-flat \
 muldiv array read fb \
+floor itof \
 fib ack tarai \
 float fib_float logistic
 
