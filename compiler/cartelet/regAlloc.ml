@@ -89,7 +89,12 @@ let rec alloc cont regenv x t prefer =
     let r = (* そうでないレジスタを探す *)
       List.find
         (fun r -> not (S.mem r live))
-        (prefer @ all) in
+        (List.filter
+	   (fun x -> match t with
+		     | Type.Unit -> assert false
+		     | Type.Float -> is_fpr x
+		     | _ -> is_gpr x)
+	   (prefer @ all)) in
     (* Format.eprintf "allocated %s to %s@." x r; *)
     Alloc(r)
   with Not_found ->

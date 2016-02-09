@@ -2,6 +2,8 @@
 
 open Asm
 
+let server_mode = ref false
+
 let data = ref [] (* 浮動小数点数の定数テーブル (caml2html: virtual_data) *)
 
 let classify xts ini addf addi =
@@ -94,7 +96,23 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
       Ans(CallCls(x, int, float, p))
   | Closure.AppDir(Id.L(x), ys, p) ->
       let (int, float) = separate (List.map (fun y -> (y, M.find y env)) ys) in
-      Ans(CallDir(Id.L(x), int, float, p))
+      (match x with
+       | "min_caml_fabs" | "min_caml_abs_float" ->
+          Ans(FAbs(List.hd float, p))
+       | "min_caml_sqrt" ->
+	  Ans(FSqrt(List.hd float, p))
+       | "min_caml_int_of_float" | "min_caml_truncate" ->
+          Ans(FToI(List.hd float, p))
+       | "min_caml_float_of_int" ->
+	  Ans(IToF(List.hd int, p))
+       | "min_caml_floor" ->
+	  Ans(Floor(List.hd float, p))
+       | "min_caml_read_int" when !server_mode ->
+	  Ans(CallDir(Id.L("min_caml_read_int_byte"), int, float, p))
+       | "min_caml_read_float" when !server_mode ->
+	  Ans(CallDir(Id.L("min_caml_read_float_byte"), int, float, p))
+       | _ ->
+	  Ans(CallDir(Id.L(x), int, float, p)))
   | Closure.Tuple(xs, p) -> (* 組の生成 (caml2html: virtual_tuple) *)
       let y = Id.genid "t" in
       let (offset, store) =
