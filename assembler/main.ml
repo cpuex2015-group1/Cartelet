@@ -510,10 +510,19 @@ let rec remove_entry_point_mark text =
 
 let output_format = ref "h" (* Hexstr Simulator Object Binary *)
 
+let rec print_by_byte bin_str =
+    if String.length bin_str > 8 then
+        (Printf.printf "x\"%s\", " (bin_to_hex (String.sub bin_str 0 8));
+        print_by_byte (String.sub bin_str 8 (String.length bin_str - 8)))
+    else if String.length bin_str > 0 then
+        Printf.printf "x\"%s\", " (bin_to_hex bin_str)
+    else
+        ()
+
 let rec output_format_sim prog =
     match prog with
     | [] -> ()
-    | l :: prog' -> Printf.printf "\"%s\",\n" l; output_format_sim prog'
+    | l :: prog' -> print_by_byte l; Printf.printf "\n"; output_format_sim prog'
 
 let rec output_format_hex prog =
     match prog with
@@ -578,7 +587,7 @@ let main' asms =
         ["00000011000000000000000000000000"] in
     match !output_format with
     | "h" -> output_format_hex prog; Printf.printf "\n"
-    | "s" -> Printf.eprintf "%d, %s\n" (List.length prog) (bin_to_hex (to_bin (List.length prog))); output_format_sim prog
+    | "s" -> Printf.eprintf "%d, %s\n" ((List.length prog) * 4) (bin_to_hex (to_bin ((List.length prog) * 4))); output_format_sim prog
     | "o" -> output_format_obj prog
     | _ -> raise (Failure (Printf.sprintf "Unknown output format: %s" !output_format))
 

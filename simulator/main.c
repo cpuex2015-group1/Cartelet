@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<unistd.h>
 #include<stdint.h>
+#include<signal.h>
 #include"cpu.h"
 
 #define MAXBUF 1024
@@ -72,6 +73,13 @@ uint32_t finv_table2[1024];
 uint32_t fsqrt_table1[1024];
 uint32_t fsqrt_table2[1024];
 
+void handler(int signal)
+{
+  print_reg();
+  printf("\n");
+  print_statistics();
+  exit(0);
+}
 
 void printbin(uint32_t i)
 {
@@ -533,6 +541,12 @@ int main(int argc,char* argv[])
 {
   FILE *fp;
   int option;
+  struct sigaction si;
+
+  si.sa_handler=handler;
+  si.sa_flags=0;
+  sigemptyset(&si.sa_mask);
+  sigaction(SIGINT,&si,NULL);
 
   if (argc<2) {
     printf("usage: %s [options] filename\n",argv[0]);
