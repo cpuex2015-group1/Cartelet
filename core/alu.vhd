@@ -39,11 +39,11 @@ architecture struct of alu is
 begin
     comb : process(r, alu_in)
         variable v : reg_type := reg_init;
-        variable num_free_entries : std_logic_vector(ALU_RS_WIDTH downto 0);
         variable tmp : std_logic_vector(31 downto 0);
-        variable rs_written : boolean := false;
     begin
         v := r;
+
+        tmp := (others => '0');
 
         -- reset rs and output
         if alu_in.reset_rs then
@@ -67,13 +67,27 @@ begin
                         case r.rs(j).command is
                             when ALU_ADD =>
                                 tmp := std_logic_vector(unsigned(r.rs(j).lhs.value) + unsigned(r.rs(j).rhs.value));
-
-                                v.alu_out.outputs(i).valid := true;
-                                v.alu_out.outputs(i).to_rob.valid := true;
-                                v.alu_out.outputs(i).to_rob.rtag := r.rs(j).rtag;
-                                v.alu_out.outputs(i).to_rob.value := tmp;
+                            when ALU_SUB =>
+                                tmp := std_logic_vector(unsigned(r.rs(j).lhs.value) - unsigned(r.rs(j).rhs.value));
+                            when ALU_SLL =>
+                                if r.rs(j).rhs.value(31) = '0' then -- positive
+                                    tmp := std_logic_vector(shift_left(unsigned(r.rs(j).lhs.value), to_integer(signed(r.rs(j).rhs.value))));
+                                else -- negative
+                                    tmp := std_logic_vector(shift_right(unsigned(r.rs(j).lhs.value), to_integer(-signed(r.rs(j).rhs.value))));
+                                end if;
+                            when ALU_SRA =>
+                                if r.rs(j).rhs.value(31) = '0' then -- positive
+                                    tmp := std_logic_vector(shift_right(signed(r.rs(j).lhs.value), to_integer(signed(r.rs(j).rhs.value))));
+                                else -- negative
+                                    tmp := std_logic_vector(shift_left(unsigned(r.rs(j).lhs.value), to_integer(-signed(r.rs(j).rhs.value))));
+                                end if;
                             when others =>
                         end case;
+
+                        v.alu_out.outputs(i).valid := true;
+                        v.alu_out.outputs(i).to_rob.valid := true;
+                        v.alu_out.outputs(i).to_rob.rtag := r.rs(j).rtag;
+                        v.alu_out.outputs(i).to_rob.value := tmp;
                         exit EXEC_L2;
                     end if;
                 end loop;
@@ -84,7 +98,7 @@ begin
         -- insert into RS
         for i in alu_in.inputs'reverse_range loop
             INSERT_L2: for j in r.rs'reverse_range loop
-                if alu_in.inputs(i).command /= ALU_NOP and not rs_written and not v.rs(j).busy then
+                if alu_in.inputs(i).command /= ALU_NOP and not v.rs(j).busy then
                     v.rs(j).busy := true;
                     v.rs(j).command := alu_in.inputs(i).command;
                     v.rs(j).rtag := alu_in.inputs(i).rtag;

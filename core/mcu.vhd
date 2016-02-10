@@ -29,20 +29,24 @@ architecture struct of mcu is
         data => (others => '0'));
     type store_buff_type is array(2 ** (MCU_STORE_BUFF_WIDTH + 1) - 1 downto 0) of store_buff_entry_type;
 
-    type cache_entry_type is record
-        valid : boolean;
-        tag : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
-        data : std_logic_vector(31 downto 0);
-    end record;
-    constant cache_entry_init : cache_entry_type := (
-        valid => false,
-        tag => (others => '0'),
-        data => (others => '0'));
+--    type cache_entry_type is record
+--        valid : boolean;
+--        tag : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
+--        data : std_logic_vector(31 downto 0);
+--    end record;
+--    constant cache_entry_init : cache_entry_type := (
+--        valid => false,
+--        tag => (others => '0'),
+--        data => (others => '0'));
+--    type cache_type is array(2 ** (CACHE_WIDTH + 1) - 1 downto 0) of cache_entry_type;
+
+    subtype cache_entry_type is std_logic_vector(52 downto 0);
     type cache_type is array(2 ** (CACHE_WIDTH + 1) - 1 downto 0) of cache_entry_type;
 
     type rs_entry_type is record
         busy : boolean;
         executing : boolean;
+        outputting : boolean;
         counter : std_logic_vector(2 downto 0); -- NOTE: counter = 0 でも executing = true な場合もある（cdbが詰まっている）
         command : std_logic_vector(CMD_WIDTH downto 0);
         rtag : std_logic_vector(TAG_WIDTH downto 0);
@@ -54,6 +58,7 @@ architecture struct of mcu is
     constant rs_entry_init : rs_entry_type := (
         busy => false,
         executing => false,
+        outputting => false,
         counter => (others => '0'),
         command => (others => '0'),
         rtag => (others => '0'),
@@ -76,9 +81,9 @@ architecture struct of mcu is
         sbhd => (others => '0'),
         sbtl => (others => '0'),
         store_buff => (others => store_buff_entry_init),
-        cache_entry => cache_entry_init);
+        cache_entry => (others => '0'));
 
-    signal cache : cache_type := (others => cache_entry_init);
+    signal cache : cache_type := (others => (others => '0'));
     signal r, rin : reg_type := reg_init;
 begin
     comb : process(r, mcu_in, cache)
@@ -88,7 +93,10 @@ begin
         variable rs_written : boolean := false;
         variable sram_addr : std_logic_vector(31 downto 0);
         variable index : integer := 0;
+        variable cache_val : cache_entry_type;
     begin
+        cache_val := (others => '0');
+
         v := r;
 
 --        v.mcu_out.ZA := (others => '0');
@@ -108,6 +116,7 @@ begin
             for i in r.rs'reverse_range loop
                 v.rs(i).busy := false;
                 v.rs(i).executing := false;
+                v.rs(i).outputting := false;
             end loop;
             v.sbhd := (others => '0');
             v.sbtl := (others => '0');
@@ -135,6 +144,8 @@ begin
         if r.store_buff(to_integer(unsigned(r.sbhd))).valid and r.store_buff(to_integer(unsigned(r.sbhd))).counter /= "00" then
             v.store_buff(to_integer(unsigned(r.sbhd))).counter := std_logic_vector(unsigned(r.store_buff(to_integer(unsigned(r.sbhd))).counter) - 1);
         end if;
+
+        v.cache_entry := (others => '0');
         if v.store_buff(to_integer(unsigned(r.sbhd))).valid and v.store_buff(to_integer(unsigned(r.sbhd))).completed then
             if v.store_buff(to_integer(unsigned(r.sbhd))).executed and r.store_buff(to_integer(unsigned(r.sbhd))).counter = "00" then
                 v.mcu_out.ZD := r.store_buff(to_integer(unsigned(r.sbhd))).data;
@@ -146,7 +157,12 @@ begin
                 v.mcu_out.ZA := r.store_buff(to_integer(unsigned(r.sbhd))).addr;
                 v.mcu_out.XWA := '0';
                 v.store_buff(to_integer(unsigned(r.sbhd))).counter := "01"; -- 実験したらこれで動いただけで、ちゃんと考えていない
-                v.store_buff(to_integer(unsigneD(r.sbhd))).executed := true;
+                v.store_buff(to_integer(unsigned(r.sbhd))).executed := true;
+
+                -- cache に入れる
+                v.cache_entry(52) := '1';
+                v.cache_entry(51 downto 32) := r.store_buff(to_integer(unsigned(r.sbhd))).addr;
+                v.cache_entry(31 downto 0) := r.store_buff(to_integer(unsigned(r.sbhd))).data;
             end if;
         end if;
 
@@ -157,13 +173,14 @@ begin
         for i in r.rs'reverse_range loop
             if r.rs(i).counter /= "000" then
                 v.rs(i).counter := std_logic_vector(unsigned(r.rs(i).counter) - 1);
-            elsif v.rs(i).busy and v.rs(i).executing and v.rs(i).command = MCU_LW then
+            end if;
+            -- TODO: もっと正確に
+            if v.rs(i).busy and v.rs(i).executing and v.rs(i).command = MCU_LW then
                 v.rs(i).data := mcu_in.ZD;
             end if;
         end loop;
 
-        -- SRAM へアドレスを飛ばす (1clk 1つのみ)
-        v.cache_entry := cache_entry_init;
+        -- execute (store バッファに入れるか、ロード待ちにするか
         SRAM_ADDR_L1: for i in r.rs'reverse_range loop
             -- NOTE: ビット数直接指定している
             sram_addr(31 downto 16) := (others => r.rs(i).imm(15));
@@ -178,7 +195,7 @@ begin
                         v.rs(i).counter := "000";
                         v.rs(i).executing := true;
 
-                        -- store buffer とキャッシュに入れる (complete 時に実際のメモリへの書き込みを行う)
+                        -- store buffer に入れる (complete 時に実際のメモリへの書き込みを行う)
                         v.store_buff(to_integer(unsigned(r.sbtl))).valid := true;
                         v.store_buff(to_integer(unsigned(r.sbtl))).addr := sram_addr(SRAM_ADDR_WIDTH downto 0);
                         v.store_buff(to_integer(unsigned(r.sbtl))).data := r.rs(i).rhs.value;
@@ -187,28 +204,24 @@ begin
                         v.rs(i).data(MCU_STORE_BUFF_WIDTH downto 0) := r.sbtl; -- store 時にはstore buffer の id が来る
 
                         v.sbtl := std_logic_vector(unsigned(r.sbtl) + 1);
-
-                        -- cache
-                        v.cache_entry.valid := true;
-                        v.cache_entry.tag := sram_addr(SRAM_ADDR_WIDTH downto 0);
-                        v.cache_entry.data := r.rs(i).rhs.value;
                         exit SRAM_ADDR_L1;
                     end if;
                 when MCU_LW =>
                     -- load には rhs は必要ない
                     if v.rs(i).busy and not v.rs(i).executing and not r.rs(i).lhs.busy then
-                        if cache(to_integer(unsigned(sram_addr(CACHE_WIDTH downto 0)))).valid and
-                           cache(to_integer(unsigned(sram_addr(CACHE_WIDTH downto 0)))).tag = sram_addr(SRAM_ADDR_WIDTH downto 0) then
+                        cache_val := cache(to_integer(unsigned(sram_addr(CACHE_WIDTH downto 0))));
+                        if cache_val(52) = '1' and
+                           cache_val(51 downto 32) = sram_addr(SRAM_ADDR_WIDTH downto 0) then
                             -- cache hit
                             v.rs(i).counter := "000";
-                            v.rs(i).data := cache(to_integer(unsigned(sram_addr(CACHE_WIDTH downto 0)))).data;
+                            v.rs(i).data := cache_val(31 downto 0);
 
                             v.rs(i).executing := true;
                             exit SRAM_ADDR_L1;
                         elsif v.mcu_out.xwa = '1' then
                             -- cache miss だが store とはかぶらない
                             v.mcu_out.ZA := sram_addr(SRAM_ADDR_WIDTH downto 0);
-                            v.rs(i).counter := "011";
+                            v.rs(i).counter := "100"; -- TODO: もっと正確に
                             v.rs(i).executing := true;
                             exit SRAM_ADDR_L1;
                         end if;
@@ -220,24 +233,26 @@ begin
 
 
         -- cdb へ流す
-        v.mcu_out.outputs := mcu_out_init.outputs;
-        index := 0;
-        EXEC_L1: for i in r.rs'reverse_range loop
-            if v.rs(i).busy and v.rs(i).executing and r.rs(i).counter = "000" and not r.rs(i).lhs.busy and not r.rs(i).rhs.busy then
-                v.mcu_out.outputs(index).valid := true;
-                if r.rs(i).command = MCU_LW then
-                    v.mcu_out.outputs(index).to_rob.valid := true;
-                else
-                    v.mcu_out.outputs(index).to_rob.valid := false;
-                end if;
-                v.mcu_out.outputs(index).to_rob.rtag := r.rs(i).rtag;
-                v.mcu_out.outputs(index).to_rob.value := v.rs(i).data;
-                index := index + 1;
-                if index >= r.mcu_out.outputs'length - 1 then
-                    exit EXEC_L1;
-                end if;
+        for i in r.mcu_out.outputs'reverse_range loop
+            if not v.mcu_out.outputs(i).valid then
+                EXEC_L2: for j in r.rs'reverse_range loop
+                    if v.rs(i).busy and v.rs(i).executing and v.rs(i).counter = "000" and not v.rs(i).outputting then
+                        v.rs(i).outputting := true;
+                        v.mcu_out.outputs(index).valid := true;
+
+                        if r.rs(j).command = MCU_LW then
+                            v.mcu_out.outputs(i).to_rob.valid := true;
+                        else
+                            v.mcu_out.outputs(i).to_rob.valid := false;
+                        end if;
+                        v.mcu_out.outputs(i).to_rob.rtag := r.rs(j).rtag;
+                        v.mcu_out.outputs(i).to_rob.value := v.rs(j).data;
+                        exit EXEC_L2;
+                    end if;
+                end loop;
             end if;
         end loop;
+
 
 
     -- insert into RS
@@ -292,6 +307,7 @@ begin
                     if v.rs(j).rtag = mcu_in.accepts(i).rtag then
                         v.rs(j).busy := false;
                         v.rs(j).executing := false;
+                        v.rs(j).outputting := false;
                     end if;
                 end loop;
                 for j in r.mcu_out.outputs'reverse_range loop
@@ -316,13 +332,14 @@ begin
     reg : process(clk)
     begin
         if rising_edge(clk) then
-            if mcu_in.reset_rs then
-                for i in cache'reverse_range loop
-                    cache(i).valid <= false;
-                end loop;
-            end if;
-            if rin.cache_entry.valid then
-                cache(to_integer(unsigned(rin.cache_entry.tag(CACHE_WIDTH downto 0)))) <= rin.cache_entry;
+            -- cache には store buffer から出すタイミングで入れるようにしたのでリセットはいらなくなった
+--            if mcu_in.reset_rs then
+--                for i in cache'reverse_range loop
+--                    cache(i).valid <= false;
+--                end loop;
+--            end if;
+            if rin.cache_entry(52) = '1' then
+                cache(to_integer(unsigned(rin.cache_entry(32 + CACHE_WIDTH downto 32)))) <= rin.cache_entry;
             end if;
             r <= rin;
         end if;

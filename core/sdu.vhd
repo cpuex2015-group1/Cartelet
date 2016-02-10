@@ -52,10 +52,14 @@ begin
 
 
         -- busy or not
-        v.sdu_out.free_count := (others => '0');
+        -- TODO: とりあえずrs を一つしか使わないことで↓の問題を回避しているので直す
+--        v.sdu_out.free_count := (others => '0');
+        v.sdu_out.free_count := "01";
         for i in r.rs'range loop
-            if not v.rs(i).busy then
-                v.sdu_out.free_count := std_logic_vector(unsigned(v.sdu_out.free_count) + 1);
+--            if not v.rs(i).busy then
+            if v.rs(i).busy then
+--                v.sdu_out.free_count := std_logic_vector(unsigned(v.sdu_out.free_count) + 1);
+                v.sdu_out.free_count := (others => '0');
             end if;
         end loop;
 
@@ -111,9 +115,9 @@ begin
                 end if;
 
                 for j in r.rs'reverse_range loop
-                    if v.rs(i).rtag = sdu_in.accepts(i).rtag and v.rs(i).executing then
-                        v.rs(i).busy := false;
-                        v.rs(i).executing := false;
+                    if v.rs(j).rtag = sdu_in.accepts(i).rtag and v.rs(j).executing then
+                        v.rs(j).busy := false;
+                        v.rs(j).executing := false;
                     end if;
                 end loop;
             end if;
