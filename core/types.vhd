@@ -9,6 +9,7 @@ package types is
     constant SRAM_ADDR_WIDTH : integer := 19;
     constant ROB_ADDR_WIDTH : integer := 4;
     constant ALU_RS_WIDTH : integer := 1;
+    constant FPU_RS_WIDTH : integer := 1;
     constant MCU_RS_WIDTH : integer := 1;
 	constant CONCURRENCY : integer := 2;
     constant TAG_LENGTH : integer := 4;
@@ -20,7 +21,7 @@ package types is
 
 
 
-    type rs_state_type is (rs_alu, rs_send, rs_recv, rs_branch, rs_jump, rs_jal, rs_memory, rs_halt, rs_others);
+    type rs_state_type is (rs_alu, rs_fpu, rs_send, rs_recv, rs_branch, rs_jump, rs_jal, rs_memory, rs_halt, rs_others);
 
     type reg_file_entry_type is record
         busy : boolean;
@@ -32,6 +33,30 @@ package types is
         rtag => (others => '0'),
         value => (others => '0'));
     type reg_file_type is array(31 downto 0) of reg_file_entry_type;
+
+    type reg_misc_entry_type is record
+        busy : boolean;
+        rtag : std_logic_vector(TAG_WIDTH downto 0);
+    end record;
+    constant reg_misc_entry_init : reg_misc_entry_type := (
+        busy => false,
+        rtag => (others => '0'));
+    type reg_misc_type is array(31 downto 0) of reg_misc_entry_type;
+
+
+    type reg_wb_entry_type is record
+        valid : boolean;
+        floating : boolean;
+        reg_num : std_logic_vector(4 downto 0);
+        value : std_logic_vector(31 downto 0);
+    end record;
+    constant reg_wb_entry_init : reg_wb_entry_type := (
+        valid => false,
+        floating => false,
+        reg_num => (others => '0'),
+        value => (others => '0'));
+
+    type reg_wb_type is array(1 downto 0) of reg_wb_entry_type;
 
 
     type receiver_in_type is record
@@ -224,6 +249,20 @@ package types is
 
 
 
+    -- fpu
+    subtype fpu_in_type is alu_in_type;
+    constant fpu_in_init : fpu_in_type := alu_in_init;
+    subtype fpu_out_type is alu_out_type;
+    constant fpu_out_init : fpu_out_type := alu_out_init;
+    component fpu is
+        port (
+            clk : in std_logic;
+            fpu_in : in fpu_in_type;
+            fpu_out : out fpu_out_type);
+    end component;
+
+
+
 
     -- branch unit
     type bru_in_body_entry_type is record
@@ -309,26 +348,6 @@ package types is
     end component;
 
 
-    type fpu_in_type is record
-        command : std_logic_vector(3 downto 0);
-        lhs : std_logic_vector(31 downto 0);
-        rhs : std_logic_vector(31 downto 0);
-    end record;
-    constant fpu_in_init : fpu_in_type := (
-        command => (others => '0'),
-        lhs => (others => '0'),
-        rhs => (others => '0'));
-    type fpu_out_type is record
-        data : std_logic_vector(31 downto 0);
-    end record;
-    constant fpu_out_init : fpu_out_type := (
-        data => (others => '0'));
-    component fpu is
-        port (
-            clk : in std_logic;
-            fpu_in : in fpu_in_type;
-            fpu_out : out fpu_out_type);
-    end component;
 
     type exec_store_entry_type is record
         valid : boolean;
@@ -398,24 +417,32 @@ package types is
 
     type op_type is record
         opcode : std_logic_vector(5 downto 0);
+        floating : boolean;
         rs_tag : rs_state_type;
         reg1 : std_logic_vector(4 downto 0);
         reg2 : std_logic_vector(4 downto 0);
         reg3 : std_logic_vector(4 downto 0);
+        read1 : std_logic_vector(4 downto 0);
+        read2 : std_logic_vector(4 downto 0);
         imm : std_logic_vector(15 downto 0);
         addr : std_logic_vector(25 downto 0);
         command : std_logic_vector(3 downto 0);
+        imm_zero_ext : boolean;
         use_imm : boolean;
     end record;
     constant op_init : op_type := (
         opcode => (others => '0'),
+        floating => false,
         rs_tag => rs_others,
         reg1 => (others => '0'),
         reg2 => (others => '0'),
         reg3 => (others => '0'),
+        read1 => (others => '0'),
+        read2 => (others => '0'),
         imm => (others => '0'),
         addr => (others => '0'),
         command => (others => '0'),
+        imm_zero_ext => false,
         use_imm => false);
 
 
@@ -427,6 +454,10 @@ package types is
     constant OP_NOP   : std_logic_vector(5 downto 0) := "000000";
     constant OP_ADD   : std_logic_vector(5 downto 0) := "000001";
     constant OP_ADDI  : std_logic_vector(5 downto 0) := "000010";
+    constant OP_ADDIU : std_logic_vector(5 downto 0) := "000011";
+    constant OP_SUB   : std_logic_vector(5 downto 0) := "000100";
+    constant OP_SLLI  : std_logic_vector(5 downto 0) := "000101";
+    constant OP_SRAI  : std_logic_vector(5 downto 0) := "000110";
     constant OP_SEND  : std_logic_vector(5 downto 0) := "011101";
     constant OP_RECV  : std_logic_vector(5 downto 0) := "011110";
     constant OP_HALT  : std_logic_vector(5 downto 0) := "011111";
@@ -439,18 +470,20 @@ package types is
     constant OP_LW    : std_logic_vector(5 downto 0) := "010000";
     constant OP_SW    : std_logic_vector(5 downto 0) := "010001";
 
+    constant OP_FADD  : std_logic_vector(5 downto 0) := "100001";
     constant OP_FBEQ  : std_logic_vector(5 downto 0) := "101000";
     constant OP_FBNEQ : std_logic_vector(5 downto 0) := "101001";
     constant OP_FBLT  : std_logic_vector(5 downto 0) := "101010";
     constant OP_FBLE  : std_logic_vector(5 downto 0) := "101011";
+    constant OP_FLW   : std_logic_vector(5 downto 0) := "110000";
+    constant OP_FSW   : std_logic_vector(5 downto 0) := "110001";
 
 
     constant ALU_NOP  : std_logic_vector(3 downto 0) := "0000";
     constant ALU_ADD  : std_logic_vector(3 downto 0) := "0001";
     constant ALU_SUB  : std_logic_vector(3 downto 0) := "0010";
     constant ALU_SLL  : std_logic_vector(3 downto 0) := "0011";
-    constant ALU_SRL  : std_logic_vector(3 downto 0) := "0100";
-    constant ALU_ADDU : std_logic_vector(3 downto 0) := "0101";
+    constant ALU_SRA  : std_logic_vector(3 downto 0) := "0100";
 
 
     constant FPU_NOP  : std_logic_vector(3 downto 0) := "0000";
@@ -460,6 +493,10 @@ package types is
     constant FPU_NEG  : std_logic_vector(3 downto 0) := "0100";
     constant FPU_ABS  : std_logic_vector(3 downto 0) := "0101";
     constant FPU_SQRT : std_logic_vector(3 downto 0) := "0110";
+    constant FPU_FLOOR: std_logic_vector(3 downto 0) := "0111";
+    constant FPU_MOV  : std_logic_vector(3 downto 0) := "1000";
+    constant FPU_FTOI : std_logic_vector(3 downto 0) := "1001";
+    constant FPU_ITOF : std_logic_vector(3 downto 0) := "1010";
 
 
 
