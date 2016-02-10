@@ -120,6 +120,10 @@ del_cmp:
 debuglist:
 	@echo "LEVEL=Parser, Typing, KNormal, Alpha, Iter, Closure, Virtual, Simm, RegAlloc, Emit"
 
+mandelbrot: shootout/mandelbrot.ml libminrt.ml.head
+	@cat libminrt.ml.head shootout/mandelbrot.ml > shootout/mandelbrot.cat.ml
+	./$(RESULT) -inline $(INLINE) shootout/mandelbrot.cat
+
 .PHONY: arcturu
 arcturu:
 	sed -i.backup -e "s/\(Format\.eprintf.*free.*\)$$/(\* \1 \*)/g" typing.ml
