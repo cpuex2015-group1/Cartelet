@@ -91,7 +91,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), Neg(y, p) ->
      emit_3 oc "sub" x reg_zero y p
   | NonTail(x), Add(y, V(z), p) ->
-     emit_3 oc "add" x y z p
+     (if (not (x = y && z = reg_zero)) && (not (x = z && y = reg_zero)) then
+	emit_3 oc "add" x y z p)
   | NonTail(x), Add(y, C(i), p) ->
      (if i <> 0 || x <> y then
 	(if is_signed_16bit i then
@@ -101,7 +102,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
 	 else
 	   assert false))
   | NonTail(x), Sub(y, V(z), p) ->
-     emit_3 oc "sub" x y z p
+     (if x <> y || z <> reg_zero then
+	emit_3 oc "sub" x y z p)
   | NonTail(x), Sub(y, C(i), p) ->
      (if i <> 0 || x <> y then
 	(if is_signed_16bit (-i) then
@@ -139,7 +141,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   | NonTail(x), FAdd(y, z, p) ->
      emit_3 oc "fadd" x y z p
   | NonTail(x), FSub(y, z, p) ->
-     emit_3 oc "fsub" x y z p
+     (* z = 0.0のときに正しくない *)
+     if y = freg_zero then emit_2 oc "fneg" x z p
+     else emit_3 oc "fsub" x y z p
   | NonTail(x), FMul(y, z, p) ->
      emit_3 oc "fmul" x y z p
   | NonTail(x), FDiv(y, z, p) ->
