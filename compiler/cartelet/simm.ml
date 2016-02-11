@@ -24,7 +24,7 @@ and g' env = function (* 各命令の即値最適化 (caml2html: simm13_gprime) *)
      let cy = M.find y env in
      if cy = 4 then Slli(x, 2, p) else failwith "multiply is supported only by 4"
   | Mul(x, V(y), p) when M.mem x env ->
-     let cx = M.find y env in
+     let cx = M.find x env in
      if cx = 4 then Slli(y, 2, p) else failwith "multiply is supported only by 4"
   | Div(x, V(y), p) when M.mem y env ->
      let cy = M.find y env in
