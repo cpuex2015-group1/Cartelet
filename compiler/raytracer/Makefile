@@ -11,6 +11,7 @@ tron ss20-2 contest shuttle piero1
 
 $(MINRT_OBJ): $(MINRT_ASM)
 	$(ASM) -format o $(MINRT_ASM) > $@
+	ls -lah $(MINRT_OBJ)
 
 .PRECIOUS: $(MINRT_ASM) $(SLD:%=sld/%.sld) $(SLD:%=ppm/%.ppm) $(SLD:%=png/%.png)
 

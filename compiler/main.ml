@@ -4,7 +4,7 @@ let debug_level = ref Debug.Emit
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
   if n = 0 then e else
-  let e' = Elim.f (FvImm.f (ConstFold.f (Inline.f (Assoc.f (Beta.f e))))) in
+  let e' = Elim.f (FvImm.f (ConstFold.f (NonTailIf.f (Inline.f (Assoc.f (Beta.f e)))))) in
   if e = e' then e else
   iter (n - 1) e'
 
@@ -110,6 +110,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: m
   let files = ref [] in
   Arg.parse
     [("-inline", Arg.Set_int(Inline.threshold), "maximum size of functions inlined");
+     ("-nonTailIf", Arg.Set_int(NonTailIf.threshold), "maximum size of functions expanded");
      ("-iter", Arg.Set_int(limit), "maximum number of optimizations iterated");
      ("-debug", Arg.String(fun s -> debug_level := Debug.level_of_string s), "output level for debugging");
      ("-server", Arg.Unit(fun () -> Virtual.server_mode := true), "toggle to server mode (use print_***_byte instead of print_***)")]

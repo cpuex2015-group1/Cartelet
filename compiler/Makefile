@@ -25,7 +25,7 @@ clean:: nobackup
 SOURCES = float.c type.ml id.ml m.ml s.ml \
 syntax.ml parser.mly lexer.mll typing.mli typing.ml kNormal.mli kNormal.ml \
 alpha.mli alpha.ml beta.mli beta.ml assoc.mli assoc.ml \
-inline.mli inline.ml constFold.mli constFold.ml \
+inline.mli inline.ml nonTailIf.mli nonTailIf.ml constFold.mli constFold.ml \
 fvImm.mli fvImm.ml elim.mli elim.ml \
 closure.mli closure.ml asm.mli asm.ml \
 debug.mli debug.ml debugAsm.mli debugAsm.ml \
@@ -74,6 +74,7 @@ test/%.cmp: test/%.res test/%.ans
 # デバッグ用 by nekketsuuu
 # usage: make debug LEVEL=Parser
 INLINE = 20
+NONTAILIF = 50
 LEVEL = Asm
 
 .PHONY: debug
@@ -88,12 +89,12 @@ debugcmp: del_cmp $(TESTS:%=test/%.cmp)
 test/%.out: $(RESULT) test/%.ml libminrt.ml.head
 	@echo "### " $*
 	@cat libminrt.ml.head test/$*.ml > test/$*.cat.ml
-	./$(RESULT) -inline $(INLINE) -debug $(LEVEL) test/$*.cat
+	./$(RESULT) -inline $(INLINE) -nonTailIf $(NONTAILIF) -debug $(LEVEL) test/$*.cat
 
 test/%.cat.s: $(RESULT) test/%.ml libminrt.ml.head
 	@echo "### " $*
 	@cat libminrt.ml.head test/$*.ml > test/$*.cat.ml
-	./$(RESULT) -inline $(INLINE) test/$*.cat
+	./$(RESULT) -inline $(INLINE) -nonTailIf $(NONTAILIF) test/$*.cat
 
 test/read.res: $(RESULT) test/read.cat.s
 	${ASM} -format o test/read.cat.s > test/read.o
@@ -134,7 +135,7 @@ HEADERS = raytracer/globals.ml.head libminrt.ml.head
 
 raytracer: $(RESULT) raytracer/min-rt.ml $(HEADERS) del_raytracer
 	@cat $(HEADERS) raytracer/min-rt.ml > raytracer/min-rt.cat.ml
-	./$(RESULT) -inline $(INLINE) -debug $(LEVEL) raytracer/min-rt.cat
+	./$(RESULT) -inline $(INLINE) -nonTailIf $(NONTAILIF) -debug $(LEVEL) raytracer/min-rt.cat
 
 .PHONY: del_raytracer
 del_raytracer:
