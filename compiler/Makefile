@@ -98,15 +98,15 @@ test/%.cat.s: $(RESULT) test/%.ml libminrt.ml.head
 
 test/read.res: $(RESULT) test/read.cat.s
 	${ASM} -format o test/read.cat.s > test/read.o
-	${SIM} -i test/tron.sld -o $@ test/read.o -r
+	${SIM} -r -i test/tron.sld -o $@ test/read.o
 
 test/fb.res: $(RESULT) test/fb.cat.s
 	${ASM} -format o test/fb.cat.s > test/fb.o
-	${SIM} -i test/test.in -o $@ test/fb.o -r
+	${SIM} -r -i test/test.in -o $@ test/fb.o
 
 test/%.res: $(RESULT) test/%.cat.s
 	${ASM} -format o test/$*.cat.s > test/$*.o
-	${SIM} -o $@ test/$*.o -r
+	${SIM} -r -o $@ test/$*.o
 
 .PHONY: del_debug del_asm del_log del_cmp
 del_out:

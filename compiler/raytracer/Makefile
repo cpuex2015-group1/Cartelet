@@ -16,7 +16,7 @@ $(MINRT_OBJ): $(MINRT_ASM)
 .PRECIOUS: $(MINRT_ASM) $(SLD:%=sld/%.sld) $(SLD:%=ppm/%.ppm) $(SLD:%=png/%.png)
 
 ppm/%.ppm: sld/%.sld $(MINRT_OBJ)
-	$(SIM) -i $< -o $@ -r $(MINRT_OBJ)
+	$(SIM) -r -i $< -o $@ $(MINRT_OBJ)
 png/%.png: ppm/%.ppm
 	convert $< $@
 
