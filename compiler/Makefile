@@ -25,7 +25,8 @@ clean:: nobackup
 SOURCES = float.c type.ml id.ml m.ml s.ml \
 syntax.ml parser.mly lexer.mll typing.mli typing.ml kNormal.mli kNormal.ml \
 alpha.mli alpha.ml beta.mli beta.ml assoc.mli assoc.ml \
-inline.mli inline.ml constFold.mli constFold.ml elim.mli elim.ml \
+inline.mli inline.ml constFold.mli constFold.ml \
+fvImm.mli fvImm.ml elim.mli elim.ml \
 closure.mli closure.ml asm.mli asm.ml \
 debug.mli debug.ml debugAsm.mli debugAsm.ml \
 virtual.mli virtual.ml simm.mli simm.ml regAlloc.mli regAlloc.ml emit.mli emit.ml \
@@ -39,7 +40,7 @@ shuffle spill spill2 spill3 join-stack join-stack2 join-stack3 \
 join-reg join-reg2 non-tail-if non-tail-if2 \
 inprod inprod-rec inprod-loop matmul matmul-flat \
 muldiv array read fb \
-floor itof \
+floor itof fvimm \
 fib ack tarai \
 float fib_float logistic
 
