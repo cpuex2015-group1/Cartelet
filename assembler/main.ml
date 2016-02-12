@@ -102,6 +102,13 @@ let rec repeat str num =
         str ^ repeat str (num - 1)
     else ""
 
+let dec_imm_to_bin_for_data str =
+    let car = String.sub str 0 1 in
+    let cdr = String.sub str 1 (String.length str - 1) in
+    match car with
+    | "-" -> neg (zfill (to_bin (int_of_string cdr)) 32)
+    | _   -> zfill (to_bin (int_of_string str)) 32
+
 let dec_imm_to_bin str =
     let car = String.sub str 0 1 in
     let cdr = String.sub str 1 (String.length str - 1) in
@@ -117,6 +124,15 @@ let rec hex_imm_to_bin str =
         hex_to_half_byte car ^ hex_imm_to_bin cdr
     else
         ""
+
+let imm_to_bin_for_data str =
+    if String.length str > 2 && String.sub str 0 2 = "0x" then
+        zfill (hex_imm_to_bin (String.sub str 2 (String.length str - 2))) 32
+    else if String.length str > 2 && String.sub str 0 2 = "0b" then
+        zfill (String.sub str 2 (String.length str - 2)) 32
+    else
+        dec_imm_to_bin_for_data str
+
 
 let imm_to_bin' str =
     if String.length str > 2 && String.sub str 0 2 = "0x" then
@@ -555,6 +571,11 @@ let rec output_format_obj prog =
     | [] -> ()
     | l :: prog' -> output_int32 (int32_of_bin l); output_format_obj prog'
 
+let rec output_format_coe prog' =
+  match prog' with
+  | [] -> ()
+  | l :: prog' -> Printf.printf "%s,\n" l; output_format_coe prog'
+
 (* for debug *)
 let rec output_text' = function
   | [] -> ()
@@ -566,7 +587,7 @@ let main' asms =
     let data = attach_logical_line_num (extract_data asms) in
     let data_tag_dict = create_tag_dict data in
     let data = strip_tag_def data in
-    let data' = List.map (fun (_, _, d) -> let tokens = Str.split (Str.regexp "[ \t()]+") d in (Printf.eprintf "%s\n" (List.nth tokens 1)); imm_to_bin' (List.nth tokens 1)) data in
+    let data' = List.map (fun (_, _, d) -> let tokens = Str.split (Str.regexp "[ \t()]+") d in (Printf.eprintf "%s\n" (List.nth tokens 1)); imm_to_bin_for_data (List.nth tokens 1)) data in
     let text = extract_text asms in
     let entry_point = get_entry_point text in
     let text = remove_entry_point_mark text in
@@ -578,22 +599,23 @@ let main' asms =
     output_text' text'; (* for debug *)
     let tag_dict = TagDict.merge (fun key a b -> if a = None then b else a) data_tag_dict (create_tag_dict text') in
     let text' = strip_tag_def text' in
-    let prog = List.map (fun (lline, _, asm) -> asm_to_bin lline asm tag_dict) text' in
+    let prog' = List.map (fun (lline, _, asm) -> asm_to_bin lline asm tag_dict) text' in
     let prog =
         [("00000010" ^ zfill (to_bin (List.length data')) 24)] @
         data' @
-        [("00000001" ^ zfill (to_bin (List.length prog)) 24)] @
-        prog @
+        [("00000001" ^ zfill (to_bin (List.length prog')) 24)] @
+        prog' @
         ["00000011000000000000000000000000"] in
     match !output_format with
     | "h" -> output_format_hex prog; Printf.printf "\n"
     | "s" -> Printf.eprintf "%d, %s\n" ((List.length prog) * 4) (bin_to_hex (to_bin ((List.length prog) * 4))); output_format_sim prog
     | "o" -> output_format_obj prog
+	| "c" -> Printf.printf "memory_initialization_radix=2;\nmemory_initialization_vector=\n"; output_format_coe prog'
     | _ -> raise (Failure (Printf.sprintf "Unknown output format: %s" !output_format))
 
 let () =
     Arg.parse
-        [("-format", Arg.String(fun s -> output_format := s), "output format (h, s, o, b)")]
+        [("-format", Arg.String(fun s -> output_format := s), "output format (h, s, o, b, c)")]
         (fun file ->
             let ic = open_in file in
             let asms = ref [] in
@@ -607,4 +629,4 @@ let () =
             with End_of_file ->
                 main' !asms;
                 close_in ic)
-        (Printf.sprintf "Cartelet V1 assembler\nusage: %s [-format h,s,o,b] filename" Sys.argv.(0))
+        (Printf.sprintf "Cartelet V1 assembler\nusage: %s [-format h,s,o,b,c] filename" Sys.argv.(0))
