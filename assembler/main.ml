@@ -248,131 +248,131 @@ let asm_to_bin line str tag_dict =
     (* 整数命令 *)
     | "nop"   -> repeat "0" 32
     | "add"   -> (assert_reg_name_gpr tokens 3;
-		  "000001" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
+          "000001" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
     | "addi"  -> (assert_reg_name_gpr tokens 2;
-		  "000010" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict)
+          "000010" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict)
     | "addiu" -> (assert_reg_name_gpr tokens 2;
-		  "000011" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict)
+          "000011" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     imm_or_abs_tag_to_bin (List.nth tokens 3) line tag_dict)
     | "sub"   -> (assert_reg_name_gpr tokens 3;
-		  "000100" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
+          "000100" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
     | "slli"  -> (assert_reg_name_gpr tokens 2;
-		  "000101" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             imm_to_bin (List.nth tokens 3))
+          "000101" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     imm_to_bin (List.nth tokens 3))
     | "srai"  -> (assert_reg_name_gpr tokens 2;
-		  "000110" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             imm_to_bin (List.nth tokens 3))
+          "000110" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     imm_to_bin (List.nth tokens 3))
     | "beq"   -> (assert_reg_name_gpr tokens 2;
-		  "001000" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "001000" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "bneq"  -> (assert_reg_name_gpr tokens 2;
-		  "001001" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "001001" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "blt"   -> (assert_reg_name_gpr tokens 2;
-		  "001010" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "001010" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "ble"   -> (assert_reg_name_gpr tokens  2;
-		  "001011" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "001011" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "jr"    -> (assert_reg_name_gpr tokens 1;
-		  "001100" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21)
+          "001100" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21)
     | "jal"   -> "001101" ^ repeat "0" 10 ^
                             abs_tag_to_bin (List.nth tokens 1) line tag_dict
     | "lw"    -> (if not (is_gpr (List.nth tokens 1)) then raise (Invalid_Reg_Name 1);
-		  if not (is_gpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
-		  "010000" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 3) ^
-                             dsp_to_bin (List.nth tokens 2))
+          if not (is_gpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
+          "010000" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 3) ^
+                     dsp_to_bin (List.nth tokens 2))
     | "sw"    -> (if not (is_gpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
-		  if not (is_gpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
-		  "010001" ^ reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^
-                             dsp_to_bin (List.nth tokens 1))
+          if not (is_gpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
+          "010001" ^ reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^
+                     dsp_to_bin (List.nth tokens 1))
     | "send"
     | "send8" -> (assert_reg_name_gpr tokens 1;
-		  "011101" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21)
+          "011101" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21)
     | "recv"
     | "recv8" -> (assert_reg_name_gpr tokens 1;
-		  "011110" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21)
+          "011110" ^ reg_to_bin (List.nth tokens 1) ^ repeat "0" 21)
     | "halt"  -> "011111" ^ repeat "0" 26
     (* 浮動小数点数命令 *)
     | "fmov"  -> (assert_reg_name_fpr tokens 2;
-		  "100000" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          "100000" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "fadd"  -> (assert_reg_name_fpr tokens 3;
-		  "100001" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
+          "100001" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
     | "fsub"  -> (assert_reg_name_fpr tokens  3;
-		  "100010" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
+          "100010" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
     | "fmul"  -> (assert_reg_name_fpr tokens  3;
-		  "100011" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
+          "100011" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^ repeat "0" 11)
     | "finv"  -> (assert_reg_name_fpr tokens  2;
-		  "100100" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          "100100" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "fsqrt" -> (assert_reg_name_fpr tokens 2;
-		  "100101" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          "100101" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "fneg"  -> (assert_reg_name_fpr tokens 2;
-		  "100110" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          "100110" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "fabs"  -> (assert_reg_name_fpr tokens 2;
-		  "100111" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          "100111" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "ftoi"  -> (if not (is_gpr (List.nth tokens 1)) then raise (Invalid_Reg_Name 1);
-		  if not (is_fpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
-		  "101100" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          if not (is_fpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
+          "101100" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "itof"  -> (if not (is_fpr (List.nth tokens 1)) then raise (Invalid_Reg_Name 1);
-		  if not (is_gpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
-		  "101101" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          if not (is_gpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
+          "101101" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "floor" -> (assert_reg_name_fpr tokens 2;
-		  "101110" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
+          "101110" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^ repeat "0" 16)
     | "fbeq"  -> (assert_reg_name_fpr tokens 2;
-		  "101000" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "101000" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "fbneq" -> (assert_reg_name_fpr tokens 2;
-		  "101001" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "101001" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "fblt"  -> (assert_reg_name_fpr tokens 2;
-		  "101010" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "101010" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "fble"  -> (assert_reg_name_fpr tokens 2;
-		  "101011" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 2) ^
-                             tag_to_bin (List.nth tokens 3) line tag_dict)
+          "101011" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 2) ^
+                     tag_to_bin (List.nth tokens 3) line tag_dict)
     | "flw"   -> (if not (is_fpr (List.nth tokens 1)) then raise (Invalid_Reg_Name 1);
-		  if not (is_gpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
-		  "110000" ^ reg_to_bin (List.nth tokens 1) ^
-                             reg_to_bin (List.nth tokens 3) ^
-                             dsp_to_bin (List.nth tokens 2))
+          if not (is_gpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
+          "110000" ^ reg_to_bin (List.nth tokens 1) ^
+                     reg_to_bin (List.nth tokens 3) ^
+                     dsp_to_bin (List.nth tokens 2))
     | "fsw"   -> (if not (is_gpr (List.nth tokens 2)) then raise (Invalid_Reg_Name 2);
-		  if not (is_fpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
-		  "110001" ^ reg_to_bin (List.nth tokens 2) ^
-                             reg_to_bin (List.nth tokens 3) ^
-                             dsp_to_bin (List.nth tokens 1))
+          if not (is_fpr (List.nth tokens 3)) then raise (Invalid_Reg_Name 3);
+          "110001" ^ reg_to_bin (List.nth tokens 2) ^
+                     reg_to_bin (List.nth tokens 3) ^
+                     dsp_to_bin (List.nth tokens 1))
     | _ -> raise (Failure "matching failed in asm_to_bin")
     with
       | Invalid_Reg_Name(n) -> raise (Failure (Printf.sprintf "Invalid format of registor naming: %s" str))
@@ -580,7 +580,7 @@ let rec output_format_coe prog' =
 let rec output_text' = function
   | [] -> ()
   | (num, line, asm) :: lst -> (Printf.eprintf "(%d, %s)\n" num asm;
-				output_text' lst)
+                output_text' lst)
 
 let main' asms =
     let asms = trim_comment asms in
@@ -610,7 +610,7 @@ let main' asms =
     | "h" -> output_format_hex prog; Printf.printf "\n"
     | "s" -> Printf.eprintf "%d, %s\n" ((List.length prog) * 4) (bin_to_hex (to_bin ((List.length prog) * 4))); output_format_sim prog
     | "o" -> output_format_obj prog
-	| "c" -> Printf.printf "memory_initialization_radix=2;\nmemory_initialization_vector=\n"; output_format_coe prog'
+    | "c" -> Printf.printf "memory_initialization_radix=2;\nmemory_initialization_vector=\n"; output_format_coe prog'
     | _ -> raise (Failure (Printf.sprintf "Unknown output format: %s" !output_format))
 
 let () =
