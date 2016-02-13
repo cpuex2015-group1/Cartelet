@@ -40,4 +40,35 @@ addi	%r30	%r30	$-1
 jr		%r31
 end:
 send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
+send	%r1
 halt

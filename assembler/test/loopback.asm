@@ -1,8 +1,9 @@
+.data
 .text
 .globl main
 main:
 loop:
-recv8 %r1
-send8 %r1
+recv %r1
+send %r1
 bneq %r1 %r0 loop
 halt
