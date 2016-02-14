@@ -14,7 +14,15 @@ entity cpu is
 end entity;
 
 architecture struct of cpu is
-    component pmem is
+    component pmem1 is
+        port (
+            addra : IN STD_LOGIC_VECTOR(SINGLE_PMEM_ADDR_WIDTH DOWNTO 0);
+            dina : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            clka : IN STD_LOGIC;
+            wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            douta : OUT STD_LOGIC_VECTOR(31 DOWNTO 0));
+    end component;
+    component pmem2 is
         port (
             addra : IN STD_LOGIC_VECTOR(SINGLE_PMEM_ADDR_WIDTH DOWNTO 0);
             dina : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -32,9 +40,10 @@ architecture struct of cpu is
     signal pmem_we : pmem_we_type;
     signal pmem_din : pmem_din_type;
 
-    type rtype_type is (rtype_float, rtype_send, rtype_branch, rtype_jump, rtype_jal, rtype_store, rtype_load, rtype_halt, rtype_others);
+    type rtype_type is (rtype_float, rtype_send, rtype_recv, rtype_branch, rtype_jump, rtype_jal, rtype_store, rtype_load, rtype_halt, rtype_others);
 
     type rob_entry_type is record
+        op : std_logic_vector(31 downto 0); -- for debug
         valid : boolean;
         completed : boolean;
         rtype : rtype_type;
@@ -43,6 +52,7 @@ architecture struct of cpu is
         value : std_logic_vector(31 downto 0);
     end record;
     constant rob_entry_init : rob_entry_type := (
+        op => (others => '0'), -- for debug
         valid => false,
         completed => false,
         rtype => rtype_others,
@@ -101,6 +111,7 @@ architecture struct of cpu is
         buff32 : buff32_type;
         load_size : std_logic_vector(23 downto 0);
         load_counter : std_logic_vector(23 downto 0);
+        load_sram_counter : std_logic_vector(1 downto 0);
         regs : reg_misc_type;
         fregs : reg_misc_type;
         reg_wb : reg_wb_type;
@@ -144,6 +155,7 @@ architecture struct of cpu is
         buff32 => buff32_init,
         load_size => (others => '0'),
         load_counter => (others => '0'),
+        load_sram_counter => (others => '0'),
         regs => (others => reg_misc_entry_init),
         fregs => (others => reg_misc_entry_init),
         reg_wb => (others => reg_wb_entry_init),
@@ -194,13 +206,13 @@ architecture struct of cpu is
     signal freg_values : reg_values_type := (others => (others => '0'));
     signal freg_values2 : reg_values_type := (others => (others => '0'));
 begin
-    pmem0 : pmem port map (
+    pmem11 : pmem1 port map (
         clka => clk,
         wea => pmem_we(0),
         addra => pmem_addr(0),
         dina => pmem_din(0),
         douta => pmem_dout(0));
-    pmem1 : pmem port map (
+    pmem21 : pmem2 port map (
         clka => clk,
         wea => pmem_we(1),
         addra => pmem_addr(1),
@@ -267,7 +279,6 @@ begin
         variable rob_wb : rob_wb_type := (others => rob_wb_entry_init);
         variable op : op_type := op_init;
         variable index : integer := 0;
-        variable head_issued : boolean := true;
         variable sum : integer := 0;
         variable tmp_pc : std_logic_vector(PMEM_ADDR_WIDTH + 1 downto 0) := (others => '0');
         variable fetch_pc_updated : boolean := false;
@@ -275,9 +286,11 @@ begin
         variable tmp_reg2 : reg_file_entry_type := reg_file_entry_init;
         variable tmp_freg1 : reg_file_entry_type := reg_file_entry_init;
         variable tmp_freg2 : reg_file_entry_type := reg_file_entry_init;
+        variable old_pc : std_logic_vector(PMEM_ADDR_WIDTH downto 0) := (others => '0');
+        variable completed_send : boolean := false;
+        variable recv_busy : boolean := false;
     begin
         tmp_pc := (others => '0');
-        head_issued := true;
         sum := 0;
         index := 0;
         fetch_pc_updated := false;
@@ -285,6 +298,9 @@ begin
         tmp_reg2 := reg_file_entry_init;
         tmp_freg1 := reg_file_entry_init;
         tmp_freg2 := reg_file_entry_init;
+        old_pc := (others => '0');
+        completed_send := false;
+        recv_busy := false;
 
 
 
@@ -293,8 +309,8 @@ begin
         v.prev_recv := cpu_in.recv;
         v.pmem_we := (others => "0");
         v.reset_rs := false;
-        v.ZA := (others => '0');
-        v.ZD := (others => '0');
+--        v.ZA := (others => '0');
+--        v.ZD := (others => '0');
         v.zd_enable := false;
         v.XWA := '1';
 
@@ -307,11 +323,14 @@ begin
 
         v.reg_wb := (others => reg_wb_entry_init);
 
+        -- sender に送り続けるのを防ぐため
+        v.cpu_out.send.go := false;
+
 
 
         v.buff32.fresh := false;
         v.cpu_out.receiver_pop := false;
-        if not(r.prev_recv.valid) and cpu_in.recv.valid then
+        if r.cpu_state /= running and not(r.prev_recv.valid) and cpu_in.recv.valid then
             v.cpu_out.receiver_pop := true;
             v.buff32.data := r.buff32.data(23 downto 0) & cpu_in.recv.data;
             v.buff32.bytes := std_logic_vector(unsigned(r.buff32.bytes) + 1);
@@ -350,7 +369,7 @@ begin
 --                            v.fetch_count := (2 => 2, others => 0);
                             v.cpu_state := running;
 
-			    v.buff32 := buff32_init;
+                            v.buff32 := buff32_init;
                         when others =>
                     end case;
                 end if;
@@ -364,18 +383,26 @@ begin
                     end if;
                 else
                     v.cpu_state := ready;
-					for i in v.pmem_addr'range loop
-						v.pmem_addr(i) := (others => '0');
-					end loop;
+                    for i in v.pmem_addr'range loop
+                        v.pmem_addr(i) := (others => '0');
+                    end loop;
                 end if;
             when dloading =>
+                if r.load_sram_counter /= "11" then
+                    v.load_sram_counter := std_logic_vector(unsigned(r.load_sram_counter) - 1);
+                    if r.load_sram_counter = "00" then
+                        v.zd_enable := true;
+                        v.ZD := r.buff32.data;
+                    end if;
+                end if;
                 if unsigned(r.load_counter) < unsigned(r.load_size) then
                     if r.buff32.fresh then
-                        v.ZD := r.buff32.data;
                         v.ZA := r.load_counter(SRAM_ADDR_WIDTH downto 0);
                         v.XWA := '0';
+                        v.load_counter := std_logic_vector(unsigned(r.load_counter) + 1);
+                        v.load_sram_counter := "01";
                     end if;
-                else
+                elsif r.load_sram_counter = "11" then
                     v.cpu_state := ready;
                 end if;
             when running =>
@@ -396,137 +423,189 @@ begin
                 end loop;
                 v.fetch_decode.first(r.fetch_decode.first'length - 1) := 0;
 
-                -- sender に送り続けるのを防ぐため
-                v.cpu_out.send.go := false;
-
 
                 ---- complete
                 -- complete rob entry
-		index := to_integer(unsigned(r.rob.head));
+                v.cdb := cdb_init;
+                index := to_integer(unsigned(r.rob.head));
                 COMPLETE_L1: for i in 0 to 1 loop -- いくつ同時に complete させるかここで決める
                     if r.rob.entries(index).valid and r.rob.entries(index).completed then
                         if r.rob.entries(index).rtype = rtype_halt then
                             if i = 0 then -- halt は rob の先頭に来たときだけ有効
-				v.cpu_state := ready;
+                                v.cpu_state := ready;
                             end if;
-			else
-			    v.pc := std_logic_vector(unsigned(v.pc) + 1);
-			    v.rob.entries(index).valid := false;
-			    v.rob.entries(index).completed := false;
+                        else
+                            old_pc := v.pc;
+                            v.pc := std_logic_vector(unsigned(v.pc) + 1);
+                            v.rob.entries(index).valid := false;
+                            v.rob.entries(index).completed := false;
 
-			    if r.rob.entries(index).rtype = rtype_branch then
-				if r.rob.entries(index).value(31) = '0' then -- 正しく分岐している
-				    v.rob.entries(index).valid := false;
-				    v.rob.entries(index).completed := false;
-				else -- 間違えた
-				    -- プログラムバッファを空にする
-				    v.pbhd := 0;
-				    v.pbtl := 0;
-				    -- NOTE: v.pc がすでに +1 されていることに注意
-				    -- NOTE: ここは、pmem の幅が 15bit だから正しい
-				    -- 16bit より大きくなったらちゃんと符号拡張しなければならない
-				    tmp_pc := std_logic_vector(signed('0' & v.pc) + signed(r.rob.entries(index).value(PMEM_ADDR_WIDTH + 1 downto 0)));
-				    v.fetch_pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
-				    v.pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
+                            if r.rob.entries(index).rtype = rtype_branch then
+                                if i = 0 then -- 先頭に来たときだけ有効 (こうしないと store buffer 中に、本来書き込まれるべきなのに握りつぶされるものが出てくる)
+                                    if r.rob.entries(index).value(31) = '1' then -- 分岐方向間違えた
+                                        -- プログラムバッファを空にする
+                                        v.pbhd := 0;
+                                        v.pbtl := 0;
+                                        -- NOTE: v.pc がすでに +1 されていることに注意
+                                        -- NOTE: ここは、pmem の幅が 15bit だから正しい
+                                        -- 16bit より大きくなったらちゃんと符号拡張しなければならない
+                                        tmp_pc := std_logic_vector(signed('0' & v.pc) + signed(r.rob.entries(index).value(PMEM_ADDR_WIDTH + 1 downto 0)));
+                                        v.fetch_pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
+                                        v.pc := tmp_pc(PMEM_ADDR_WIDTH downto 0);
 
-				    v.stall_exec_schedule := "1111";
-				    fetch_pc_updated := true;
+                                        v.stall_exec_schedule := "1111";
+                                        fetch_pc_updated := true;
 
-				    -- rob も空にする
-				    v.rob.tail := (others => '0');
-				    v.rob.entries := (others => rob_entry_init);
+                                        -- rob も空にする
+                                        v.rob.tail := (others => '0');
+                                        v.rob.entries := (others => rob_entry_init);
 
-				    -- rs も空にする
-				    v.reset_rs := true;
+                                        -- rs も空にする
+                                        v.reset_rs := true;
 
-				    -- busy な reg も解放する
-				    for j in r.regs'reverse_range loop
-					v.regs(j).busy := false;
-				    end loop;
+                                        -- busy な reg も解放する
+                                        for j in r.regs'reverse_range loop
+                                            v.regs(j).busy := false;
+                                            v.fregs(j).busy := false;
+                                        end loop;
 
-				    exit COMPLETE_L1;
-				end if;
-			    elsif r.rob.entries(index).rtype = rtype_jump or r.rob.entries(index).rtype = rtype_jal then -- TODO: あまりにも効率が悪い
-				-- jr, jal
-				-- プログラムバッファを空にする
-				v.pbhd := 0;
-				v.pbtl := 0;
-
-				-- NOTE: ここが branch と違う
-				-- jal なら regs(31) に pc 待避
-                                if r.rob.entries(index).rtype = rtype_jal then
-                                    if index = to_integer(unsigned(r.regs(31).rtag)) then
-                                        v.regs(31).busy := false;
+                                        exit COMPLETE_L1;
                                     end if;
-                                    v.reg_wb(i).valid := true;
-                                    v.reg_wb(i).reg_num := "11111";
-                                    v.reg_wb(i).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
-                                    v.reg_wb(i).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
-                                    v.reg_wb(i).floating := false;
-				end if;
-
-				v.fetch_pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
-				v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
-
-
-				v.stall_exec_schedule := "1111";
-				fetch_pc_updated := true;
-
-				-- rob も空にする
-				v.rob.tail := (others => '0');
-				v.rob.entries := (others => rob_entry_init);
-
-				-- rs も空にする
-				v.reset_rs := true;
-
-				-- busy な reg も解放する
-				for j in r.regs'reverse_range loop
-				    v.regs(j).busy := false;
-				end loop;
-
-				exit COMPLETE_L1;
-			    else
-				if r.rob.entries(index).rtype = rtype_send and not cpu_in.sender_busy then
-				    -- send
-				    v.cpu_out.send.data := v.rob.entries(index).value(7 downto 0);
-				    v.cpu_out.send.go := true;
-				elsif r.rob.entries(index).rtype = rtype_store then
-				    -- ここで本当にメモリへ書き込む
-				    v.mcu_in.exec_store(i).valid := true;
-				    v.mcu_in.exec_store(i).buff_index := r.rob.entries(index).value(MCU_STORE_BUFF_WIDTH downto 0);
+                                    -- 正しいブランチのときは何もしない (ので exit しない)
                                 else
-				    -- reg へ書き戻し
-				    -- alu 命令と load とfpu 命令
-                                    if not r.rob.entries(index).write_float then
-                                        -- regs
-                                        if index = to_integer(unsigned(r.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
-                                            v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
+                                    v.pc := old_pc;
+                                    v.rob.entries(index).valid := true;
+                                    v.rob.entries(index).completed := true;
+                                    exit COMPLETE_L1;
+                                end if;
+                            elsif r.rob.entries(index).rtype = rtype_jump or r.rob.entries(index).rtype = rtype_jal then -- TODO: あまりにも効率が悪い
+                                if i = 0 then
+                                    -- jr, jal
+                                    -- プログラムバッファを空にする
+                                    v.pbhd := 0;
+                                    v.pbtl := 0;
+
+                                    -- NOTE: ここが branch と違う
+                                    -- jal なら regs(31) に pc 待避
+                                    if r.rob.entries(index).rtype = rtype_jal then
+                                        if index = to_integer(unsigned(r.regs(31).rtag)) then
+                                            v.regs(31).busy := false;
                                         end if;
-                                    else
-                                        -- fregs
-                                        if index = to_integer(unsigned(r.fregs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
-                                            v.fregs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
-                                        end if;
+                                        v.reg_wb(i).valid := true;
+                                        v.reg_wb(i).reg_num := "11111";
+                                        v.reg_wb(i).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
+                                        v.reg_wb(i).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
+                                        v.reg_wb(i).floating := false;
                                     end if;
+
+                                    v.fetch_pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+                                    v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+
+
+                                    v.stall_exec_schedule := "1111";
+                                    fetch_pc_updated := true;
+
+                                    -- rob も空にする
+                                    v.rob.tail := (others => '0');
+                                    v.rob.entries := (others => rob_entry_init);
+
+                                    -- rs も空にする
+                                    v.reset_rs := true;
+
+                                    -- busy な reg も解放する
+                                    for j in r.regs'reverse_range loop
+                                        v.regs(j).busy := false;
+                                        v.fregs(j).busy := false;
+                                    end loop;
+                                else
+                                    v.pc := old_pc;
+                                    v.rob.entries(index).valid := true;
+                                    v.rob.entries(index).completed := true;
+                                end if;
+
+                                exit COMPLETE_L1;
+                            elsif r.rob.entries(index).rtype = rtype_send then
+                                -- send
+                                if not cpu_in.sender_busy and not completed_send then
+                                    v.cpu_out.send.data := v.rob.entries(index).value(7 downto 0);
+                                    v.cpu_out.send.go := true;
+                                    completed_send := true; -- 1 clk 1 send のみ
+                                else
+                                    v.pc := old_pc;
+                                    v.rob.entries(index).valid := true;
+                                    v.rob.entries(index).completed := true;
+                                    exit COMPLETE_L1;
+                                end if;
+                            elsif r.rob.entries(index).rtype = rtype_store then
+                                -- ここで本当にメモリへ書き込む
+                                v.mcu_in.exec_store(i).valid := true;
+                                v.mcu_in.exec_store(i).buff_index := r.rob.entries(index).value(MCU_STORE_BUFF_WIDTH downto 0);
+                            elsif r.rob.entries(index).rtype = rtype_recv then
+                                -- receive
+                                if not recv_busy and cpu_in.recv.valid then
+                                    -- pop
+                                    v.cpu_out.receiver_pop := true;
+
+                                    if index = to_integer(unsigned(r.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
+                                        v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
+                                    end if;
+
                                     -- 値はここで書き戻す
                                     v.reg_wb(i).valid := true;
-                                    v.reg_wb(i).value := r.rob.entries(index).value;
-                                    v.reg_wb(i).floating := r.rob.entries(index).write_float;
+                                    v.reg_wb(i).value(31 downto 8) := (others => '0');
+                                    v.reg_wb(i).value(7 downto 0) := cpu_in.recv.data;
+                                    v.reg_wb(i).floating := false;
                                     v.reg_wb(i).reg_num := r.rob.entries(index).reg_num;
-				end if;
-			    end if;
-			    index := to_integer(to_unsigned(index + 1, TAG_LENGTH));
-			end if;
+
+                                    -- cdb へ流す
+                                    v.cdb(i).valid := true;
+                                    v.cdb(i).rtag := std_logic_vector(to_unsigned(index, TAG_LENGTH));
+                                    v.cdb(i).value(31 downto 8) := (others => '0');
+                                    v.cdb(i).value(7 downto 0) := cpu_in.recv.data;
+                                    recv_busy := true;
+                                else
+                                    v.pc := old_pc;
+                                    v.rob.entries(index).valid := true;
+                                    v.rob.entries(index).completed := true;
+                                    exit COMPLETE_L1;
+                                end if;
+                            else
+                                -- reg へ書き戻し
+                                -- alu 命令と load とfpu 命令
+                                if not r.rob.entries(index).write_float then
+                                    -- regs
+                                    if index = to_integer(unsigned(r.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
+                                        v.regs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
+                                    end if;
+                                else
+                                    -- fregs
+                                    if index = to_integer(unsigned(r.fregs(to_integer(unsigned(r.rob.entries(index).reg_num))).rtag)) then
+                                        v.fregs(to_integer(unsigned(r.rob.entries(index).reg_num))).busy := false;
+                                    end if;
+                                end if;
+                                -- 値はここで書き戻す
+                                v.reg_wb(i).valid := true;
+                                v.reg_wb(i).value := r.rob.entries(index).value;
+                                v.reg_wb(i).floating := r.rob.entries(index).write_float;
+                                v.reg_wb(i).reg_num := r.rob.entries(index).reg_num;
+
+                                -- cdb へ流す
+                                v.cdb(i).valid := true;
+                                v.cdb(i).rtag := std_logic_vector(to_unsigned(index, TAG_LENGTH));
+                                v.cdb(i).value := r.rob.entries(index).value;
+                            end if;
+                            index := to_integer(to_unsigned(index + 1, TAG_LENGTH));
+                        end if;
                     else
                         exit COMPLETE_L1;
                     end if;
                 end loop;
 
-		if fetch_pc_updated then
+                if fetch_pc_updated then
                     v.rob.head := (others => '0');
                 else
-		    v.rob.head := std_logic_vector(to_unsigned(index, TAG_LENGTH));
-		end if;
+                    v.rob.head := std_logic_vector(to_unsigned(index, TAG_LENGTH));
+                end if;
 
                 ---- decode & issue
                 -- ここでの issue_count は *前の* クロックで実行した命令数
@@ -544,13 +623,13 @@ begin
                     v.sdu_ic := 0;
                     v.mcu_ic := 0;
                     v.fpu_ic := 0;
-                    for i in r.insts'reverse_range loop -- insts'range だと降順
+                    ISSUE_L1: for i in r.insts'reverse_range loop -- insts'range だと降順
                         decode(v.insts(i), op);
                         forwarding(op.read1, false, v.regs(to_integer(unsigned(op.read1))), reg_values(to_integer(unsigned(op.read1))), v.reg_wb, tmp_reg1);
                         forwarding(op.read2, false, v.regs(to_integer(unsigned(op.read2))), reg_values2(to_integer(unsigned(op.read2))), v.reg_wb, tmp_reg2);
                         forwarding(op.read1, true, v.fregs(to_integer(unsigned(op.read1))), freg_values(to_integer(unsigned(op.read1))), v.reg_wb, tmp_freg1);
                         forwarding(op.read2, true, v.fregs(to_integer(unsigned(op.read2))), freg_values2(to_integer(unsigned(op.read2))), v.reg_wb, tmp_freg2);
-                        if unsigned(r.rob.tail) + i + 1 /= unsigned(r.rob.head) and head_issued then -- ここのチェックは r で、今のクロックのrobの状態は反映していないので分岐ミスなどでrobが消えていた時は上のstall_exec_scheduleでバリデーションする
+                        if unsigned(r.rob.tail) + i + 1 /= unsigned(r.rob.head) then -- ここのチェックは r で、今のクロックのrobの状態は反映していないので分岐ミスなどでrobが消えていた時は上のstall_exec_scheduleでバリデーションする
                             case op.rs_tag is
                                 when rs_alu =>
                                     if unsigned(alu_out.free_count) > v.alu_ic then
@@ -577,34 +656,48 @@ begin
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := op.reg1;
-                                        v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
+                                        v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
                                         v.alu_ic := v.alu_ic + 1;
                                     else
-                                        head_issued := false;
+                                        exit ISSUE_L1;
                                     end if;
                                 when rs_fpu =>
                                     if unsigned(fpu_out.free_count) > v.fpu_ic then
                                         v.fpu_in.inputs(v.fpu_ic).command := op.command;
                                         v.fpu_in.inputs(v.fpu_ic).rtag := v.rob.tail;
-                                        v.fpu_in.inputs(v.fpu_ic).lhs := tmp_freg1;
+                                        if op.opcode = OP_ITOF then
+                                            v.fpu_in.inputs(v.fpu_ic).lhs := tmp_reg1; -- 整数レジスタから取る
+                                        else
+                                            v.fpu_in.inputs(v.fpu_ic).lhs := tmp_freg1;
+                                        end if;
                                         v.fpu_in.inputs(v.fpu_ic).rhs := tmp_freg2;
-
-                                        -- TODO: reg に書き戻す命令の場合分け
-                                        v.fregs(to_integer(unsigned(op.reg1))).busy := true;
-                                        v.fregs(to_integer(unsigned(op.reg1))).rtag := v.rob.tail;
 
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := op.reg1;
-                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).write_float := true;
+                                        if op.opcode = OP_FTOI then
+                                            v.rob.entries(to_integer(unsigned(v.rob.tail))).write_float := false; -- 整数レジスタに入れる
+
+                                            v.regs(to_integer(unsigned(op.reg1))).busy := true;
+                                            v.regs(to_integer(unsigned(op.reg1))).rtag := v.rob.tail;
+                                        else
+                                            v.rob.entries(to_integer(unsigned(v.rob.tail))).write_float := true;
+
+                                            v.fregs(to_integer(unsigned(op.reg1))).busy := true;
+                                            v.fregs(to_integer(unsigned(op.reg1))).rtag := v.rob.tail;
+                                        end if;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_float;
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
 
                                         v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                         v.fpu_ic := v.fpu_ic + 1;
                                     else
-                                        head_issued := false;
+                                        exit ISSUE_L1;
                                     end if;
                                 when rs_send =>
                                     if unsigned(sdu_out.free_count) > v.sdu_ic then
@@ -616,19 +709,42 @@ begin
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_send;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := op.reg1;
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
                                         v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                         v.sdu_ic := v.sdu_ic + 1;
                                     else
-                                        head_issued := false;
+                                        exit ISSUE_L1;
                                     end if;
+                                when rs_recv =>
+                                    -- 並列実行されない (rob で前から処理される)
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).completed := true;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_recv;
+                                    v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := op.reg1;
+
+                                    v.regs(to_integer(unsigned(op.reg1))).busy := true;
+                                    v.regs(to_integer(unsigned(op.reg1))).rtag := v.rob.tail;
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
+
+                                    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+                                    v.issue_count := v.issue_count + 1;
                                 when rs_branch =>
-                                    -- TODO: floating
                                     if unsigned(bru_out.free_count) > v.bru_ic then
                                         v.bru_in.input.rtag := v.rob.tail;
                                         v.bru_in.input.command := op.command;
-                                        v.bru_in.input.lhs := tmp_reg1;
-                                        v.bru_in.input.rhs := tmp_reg2;
+                                        if op.opcode = OP_FBEQ or op.opcode = OP_FBNEQ or op.opcode = OP_FBLT or op.opcode = OP_FBLE then
+                                            v.bru_in.input.lhs := tmp_freg1;
+                                            v.bru_in.input.rhs := tmp_freg2;
+                                        else
+                                            v.bru_in.input.lhs := tmp_reg1;
+                                            v.bru_in.input.rhs := tmp_reg2;
+                                        end if;
                                         v.bru_in.input.taken := false; -- TODO: 分岐予測
                                         v.bru_in.input.offset := op.imm;
 
@@ -636,11 +752,14 @@ begin
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_branch;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := (others => '-');
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
                                         v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                         v.bru_ic := v.bru_ic + 1;
                                     else
-                                        head_issued := false;
+                                        exit ISSUE_L1;
                                     end if;
                                 when rs_memory =>
                                     if unsigned(mcu_out.free_count) > v.mcu_ic then
@@ -688,44 +807,53 @@ begin
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).write_float := op.floating;
 
 
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
+
                                         v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                         v.mcu_ic := v.mcu_ic + 1;
                                     else
-                                        head_issued := false;
+                                        exit ISSUE_L1;
                                     end if;
-				when rs_jump =>
-				    -- ジャンプ先のアドレスを知りたいだけなので、レジスタの値解決ができればそれでいい
-				    -- reg1 + 0 を計算することで代用している
+                                when rs_jump =>
+                                    -- ジャンプ先のアドレスを知りたいだけなので、レジスタの値解決ができればそれでいい
+                                    -- reg1 + 0 を計算することで代用している
                                     if unsigned(alu_out.free_count) > v.alu_ic then
                                         v.alu_in.inputs(v.alu_ic).command := ALU_ADD;
                                         v.alu_in.inputs(v.alu_ic).rtag := v.rob.tail;
                                         v.alu_in.inputs(v.alu_ic).lhs := tmp_reg1;
-					v.alu_in.inputs(v.alu_ic).rhs.busy := false;
-					v.alu_in.inputs(v.alu_ic).rhs.rtag := (others => '-');
-					v.alu_in.inputs(v.alu_ic).rhs.value(31 downto 0) := (others => '0');
+                                        v.alu_in.inputs(v.alu_ic).rhs.busy := false;
+                                        v.alu_in.inputs(v.alu_ic).rhs.rtag := (others => '-');
+                                        v.alu_in.inputs(v.alu_ic).rhs.value(31 downto 0) := (others => '0');
 
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).reg_num := (others => '-');
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_jump;
+
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
                                         v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                         v.alu_ic := v.alu_ic + 1;
                                     else
-                                        head_issued := false;
+                                        exit ISSUE_L1;
                                     end if;
-				when rs_jal =>
+                                when rs_jal =>
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).completed := true;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_jal;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).value(25 downto 0) := op.addr;
 
-				    v.regs(31).busy := true;
-				    v.regs(31).rtag := v.rob.tail;
 
-				    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
+                                    v.regs(31).busy := true;
+                                    v.regs(31).rtag := v.rob.tail;
+
+                                    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                     v.issue_count := v.issue_count + 1;
                                 when rs_halt =>
@@ -734,12 +862,17 @@ begin
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).completed := true;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_halt;
 
-				    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
+                                        v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
+
+
+                                    v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                     v.issue_count := v.issue_count + 1;
                                 when others =>
-                                    head_issued := false;
+                                    exit ISSUE_L1;
                             end case;
+                        else
+                            exit ISSUE_L1;
                         end if;
                     end loop;
                     v.issue_count := v.issue_count + v.alu_ic + v.sdu_ic + v.bru_ic + v.mcu_ic + v.fpu_ic;
@@ -750,15 +883,10 @@ begin
 
                 ---- executed
                 -- arbiter determines what data is to be sent to the cdb
-                v.cdb := cdb_init;
                 v.accepts := (others => accept_init);
                 rob_wb := (others => rob_wb_entry_init);
                 for i in r.cdb'reverse_range loop
                     if fpu_out.outputs(i).valid then -- FPU が最優先
-                        v.cdb(i).valid := fpu_out.outputs(i).to_rob.valid;
-                        v.cdb(i).rtag := fpu_out.outputs(i).to_rob.rtag;
-                        v.cdb(i).value := fpu_out.outputs(i).to_rob.value;
-
                         rob_wb(i).valid := true;
                         rob_wb(i).completed := true;
                         rob_wb(i).rtag := fpu_out.outputs(i).to_rob.rtag;
@@ -767,10 +895,6 @@ begin
                         v.accepts(i).valid := true;
                         v.accepts(i).rtag := fpu_out.outputs(i).to_rob.rtag;
                     elsif alu_out.outputs(i).valid then
-                        v.cdb(i).valid := alu_out.outputs(i).to_rob.valid;
-                        v.cdb(i).rtag := alu_out.outputs(i).to_rob.rtag;
-                        v.cdb(i).value := alu_out.outputs(i).to_rob.value;
-
                         rob_wb(i).valid := true;
                         rob_wb(i).completed := true;
                         rob_wb(i).rtag := alu_out.outputs(i).to_rob.rtag;
@@ -795,12 +919,6 @@ begin
                         v.accepts(i).valid := true;
                         v.accepts(i).rtag := bru_out.output.to_rob.rtag;
                     elsif mcu_out.outputs(i).valid then
-                        if mcu_out.outputs(i).to_rob.valid then -- mcu では to_rob.valid を cdb への書き込みフラグにしている
-                            v.cdb(i).valid := true;
-                            v.cdb(i).rtag := mcu_out.outputs(i).to_rob.rtag;
-                            v.cdb(i).value := mcu_out.outputs(i).to_rob.value;
-                        end if;
-
                         rob_wb(i).valid := true;
                         rob_wb(i).completed := true;
                         rob_wb(i).rtag := mcu_out.outputs(i).to_rob.rtag;
@@ -867,7 +985,7 @@ begin
         sdu_in.inputs <= r.sdu_in.inputs;
         bru_in.input <= r.bru_in.input;
         mcu_in.inputs <= r.mcu_in.inputs;
-        mcu_in.exec_store <= r.mcu_in.exec_store;
+        mcu_in.exec_store <= v.mcu_in.exec_store;
         fpu_in.inputs <= r.fpu_in.inputs;
         accepts <= r.accepts;
         cpu_out.send <= r.cpu_out.send;
@@ -899,6 +1017,8 @@ begin
             pmem_din <= rin.pmem_din;
             pmem_we <= rin.pmem_we;
             pmem_addr <= rin.pmem_addr;
+--            pmem_addr(0) <= std_logic_vector(unsigned(rin.pmem_addr(0)) + 1); -- for debug
+--            pmem_addr(1) <= std_logic_vector(unsigned(rin.pmem_addr(1)) + 1); -- for debug
             -- fetch してきたものをバッファへ入れる
             if rin.stall_fetch_schedule(0) = '0' then
                 for i in 0 to 1 loop
@@ -911,7 +1031,7 @@ begin
 
             -- reg write back
             for i in rin.reg_wb'reverse_range loop
-                if rin.reg_wb(i).valid then
+                if rin.reg_wb(i).valid and rin.reg_wb(i).reg_num /= "00000" then
                     if rin.reg_wb(i).floating then
                         freg_values(to_integer(unsigned(rin.reg_wb(i).reg_num))) <= rin.reg_wb(i).value;
                         freg_values2(to_integer(unsigned(rin.reg_wb(i).reg_num))) <= rin.reg_wb(i).value;

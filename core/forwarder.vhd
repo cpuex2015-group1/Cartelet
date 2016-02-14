@@ -24,12 +24,11 @@ package body forwarder is
     begin
         forwarded_reg.busy := reg_misc.busy;
         forwarded_reg.rtag := reg_misc.rtag;
+        forwarded_reg.value := value;
 
         for i in regs'reverse_range loop
             if regs(i).valid and regs(i).reg_num = reg_num and regs(i).floating = floating then
                 forwarded_reg.value := regs(i).value;
-            else
-                forwarded_reg.value := value;
             end if;
         end loop;
     end forwarding;

@@ -65,7 +65,7 @@ package body decoder is
             op.floating := false;
         end if;
 
-        report stdv2str(inst(31 downto 26));
+--        report stdv2str(inst(31 downto 26));
         case inst(31 downto 26) is
             when OP_ADD =>
                 op.rs_tag := rs_alu;
@@ -162,12 +162,6 @@ package body decoder is
                 op.read1 := reg1;
                 op.read2 := reg2;
 
-            when OP_FADD =>
-                op.rs_tag := rs_fpu;
-                op.command := FPU_ADD;
-                op.read1 := reg2;
-                op.read2 := reg3;
-
             when OP_FBNEQ =>
                 op.rs_tag := rs_branch;
                 op.command := BRU_FNEQ;
@@ -185,6 +179,64 @@ package body decoder is
                 op.command := BRU_FLE;
                 op.read1 := reg1;
                 op.read2 := reg2;
+
+            when OP_FMOV =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_MOV;
+                op.read1 := reg2;
+
+            when OP_FADD =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_ADD;
+                op.read1 := reg2;
+                op.read2 := reg3;
+
+            when OP_FSUB =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_SUB;
+                op.read1 := reg2;
+                op.read2 := reg3;
+
+            when OP_FMUL =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_MUL;
+                op.read1 := reg2;
+                op.read2 := reg3;
+
+            when OP_FINV =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_INV;
+                op.read1 := reg2;
+
+            when OP_FSQRT =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_SQRT;
+                op.read1 := reg2;
+
+            when OP_FNEG =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_NEG;
+                op.read1 := reg2;
+
+            when OP_FABS =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_ABS;
+                op.read1 := reg2;
+
+            when OP_FTOI =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_FTOI;
+                op.read1 := reg2;
+
+            when OP_ITOF =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_ITOF;
+                op.read1 := reg2;
+
+            when OP_FLOOR =>
+                op.rs_tag := rs_fpu;
+                op.command := FPU_FLOOR;
+                op.read1 := reg2;
 
             when OP_FLW =>
                 op.rs_tag := rs_memory;

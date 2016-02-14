@@ -11,8 +11,8 @@ package types is
     constant ALU_RS_WIDTH : integer := 1;
     constant FPU_RS_WIDTH : integer := 1;
     constant MCU_RS_WIDTH : integer := 1;
-	constant CONCURRENCY : integer := 2;
-    constant TAG_LENGTH : integer := 4;
+    constant CONCURRENCY : integer := 2;
+    constant TAG_LENGTH : integer := 3;
     constant TAG_WIDTH : integer := TAG_LENGTH - 1;
     constant IMM_LENGTH : integer := 16;
     constant IMM_WIDTH : integer := 15;
@@ -470,7 +470,18 @@ package types is
     constant OP_LW    : std_logic_vector(5 downto 0) := "010000";
     constant OP_SW    : std_logic_vector(5 downto 0) := "010001";
 
+    constant OP_FMOV  : std_logic_vector(5 downto 0) := "100000";
     constant OP_FADD  : std_logic_vector(5 downto 0) := "100001";
+    constant OP_FSUB  : std_logic_vector(5 downto 0) := "100010";
+    constant OP_FMUL  : std_logic_vector(5 downto 0) := "100011";
+    constant OP_FINV  : std_logic_vector(5 downto 0) := "100100";
+    constant OP_FSQRT : std_logic_vector(5 downto 0) := "100101";
+    constant OP_FNEG  : std_logic_vector(5 downto 0) := "100110";
+    constant OP_FABS  : std_logic_vector(5 downto 0) := "100111";
+    constant OP_FTOI  : std_logic_vector(5 downto 0) := "101100";
+    constant OP_ITOF  : std_logic_vector(5 downto 0) := "101101";
+    constant OP_FLOOR : std_logic_vector(5 downto 0) := "101110";
+
     constant OP_FBEQ  : std_logic_vector(5 downto 0) := "101000";
     constant OP_FBNEQ : std_logic_vector(5 downto 0) := "101001";
     constant OP_FBLT  : std_logic_vector(5 downto 0) := "101010";
@@ -497,6 +508,7 @@ package types is
     constant FPU_MOV  : std_logic_vector(3 downto 0) := "1000";
     constant FPU_FTOI : std_logic_vector(3 downto 0) := "1001";
     constant FPU_ITOF : std_logic_vector(3 downto 0) := "1010";
+    constant FPU_SUB  : std_logic_vector(3 downto 0) := "1011";
 
 
 

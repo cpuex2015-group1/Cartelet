@@ -5,7 +5,10 @@ use ieee.numeric_std.all;
 use work.types.all;
 
 entity sender is
-    generic (wtime : std_logic_vector(15 downto 0) := x"1ADB");
+    generic (
+        wtime : std_logic_vector(15 downto 0) := x"1ADB";
+        SENDER_FIFO_ADDR_LENGTH : integer := 2
+    );
     port (
         clk : in std_logic;
         sender_in : in sender_in_type;
@@ -13,7 +16,7 @@ entity sender is
 end sender;
 
 architecture struct of sender is
-    type sender_fifo_type is array(31 downto 0) of std_logic_vector(7 downto 0);
+    type sender_fifo_type is array(2 ** SENDER_FIFO_ADDR_LENGTH - 1 downto 0) of std_logic_vector(7 downto 0);
     type st_type is (ready, sending_a_bit);
     type reg_type is record
         sender_fifo : sender_fifo_type;
@@ -24,8 +27,8 @@ architecture struct of sender is
         counter : std_logic_vector(15 downto 0);
         rem_bits : std_logic_vector(3 downto 0);
         rem_bytes : std_logic_vector(2 downto 0);
-        qhd : std_logic_vector(4 downto 0);
-        qtl : std_logic_vector(4 downto 0);
+        qhd : std_logic_vector(SENDER_FIFO_ADDR_LENGTH - 1 downto 0);
+        qtl : std_logic_vector(SENDER_FIFO_ADDR_LENGTH - 1 downto 0);
     end record;
     signal r, rin : reg_type := (
         sender_fifo => (others => (others => '0')),
@@ -41,7 +44,6 @@ architecture struct of sender is
     );
 begin
     sender_out.rs_tx <= r.sending_buff(0);
-    sender_out.busy <= unsigned(r.qtl) + 2 = unsigned(r.qhd) or unsigned(r.qtl) + 1 = unsigned(r.qhd);
 
     comb : process (sender_in, r)
         variable v : reg_type;
@@ -85,6 +87,13 @@ begin
                     v.counter := std_logic_vector(unsigned(r.counter) - 1);
                 end if;
         end case;
+
+        if to_unsigned(to_integer(unsigned(v.qtl)) + 2, SENDER_FIFO_ADDR_LENGTH) = unsigned(v.qhd) or
+            to_unsigned(to_integer(unsigned(v.qtl)) + 1, SENDER_FIFO_ADDR_LENGTH) = unsigned(v.qhd) then
+            sender_out.busy <= true;
+        else
+            sender_out.busy <= false;
+        end if;
         rin <= v;
     end process;
     reg : process (clk)

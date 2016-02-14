@@ -3,6 +3,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity sram_sim is
+    generic (
+        SIM_SRAM_ADDR_LENGTH : integer := 17
+    );
     port (
         ZD     : inout std_logic_vector (31 downto 0);
         ZA     : in    std_logic_vector (19 downto 0);
@@ -22,7 +25,7 @@ entity sram_sim is
 end sram_sim;
 
 architecture behaviour of sram_sim is
-    type mem_type is array (1023 downto 0) of std_logic_vector (31 downto 0);
+    type mem_type is array (2 ** SIM_SRAM_ADDR_LENGTH - 1 downto 0) of std_logic_vector (31 downto 0);
     signal mem : mem_type;
     type data_type is array (1 downto 0) of std_logic_vector (31 downto 0);
     type addr_type is array (3 downto 0) of std_logic_vector (19 downto 0);
@@ -62,16 +65,16 @@ begin
             zdbo := (others => 'Z');
             if xwab (2 downto 1) = "01" then
                 if zab(2)(0) = '1' or zab(2)(0) = '0' then
-                    mem(to_integer(unsigned(zab(2)))) <= ZD;
+                    mem(to_integer(unsigned(zab(2)(SIM_SRAM_ADDR_LENGTH - 1 downto 0)))) <= ZD;
                     zdbo := ZD;
                 end if;
             elsif xwab (2 downto 1) = "11" then
                 if zab(1)(0) = '1' or zab(1)(0) = '0' then
-                    zdbo := mem(to_integer(unsigned(zab(1))));
+                    zdbo := mem(to_integer(unsigned(zab(1)(SIM_SRAM_ADDR_LENGTH - 1 downto 0))));
                 end if;
             else
                 if zab(2)(0) = '1' or zab(2)(0) = '0' then
-                    mem(to_integer(unsigned(zab(2)))) <= ZD;
+                    mem(to_integer(unsigned(zab(2)(SIM_SRAM_ADDR_LENGTH - 1 downto 0)))) <= ZD;
                     zdbo := (others => 'Z');
                 end if;
             end if;

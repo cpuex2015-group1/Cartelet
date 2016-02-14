@@ -77,58 +77,32 @@
           signal receiver_out : receiver_out_type;
           signal sender_in : sender_in_type;
           signal sender_out : sender_out_type;
-          signal counter : std_logic_vector (7 downto 0) := x"a0";
-          type inst_list_type is array (160 downto 0) of std_logic_vector (7 downto 0);
+          signal counter : std_logic_vector (15 downto 0) := x"0044";
+          type inst_list_type is array (68 downto 0) of std_logic_vector (7 downto 0);
           signal inst_list : inst_list_type := (
-          x"02", x"00", x"00", x"00",
-x"01", x"00", x"00", x"25",
+          x"02", x"00", x"00", x"02",
+x"40", x"c9", x"0f", x"db",
+x"40", x"49", x"0f", x"db",
+x"01", x"00", x"00", x"0c",
 x"20", x"00", x"00", x"00",
-x"08", x"20", x"00", x"0a",
-x"0b", x"c0", x"00", x"01",
-x"0b", x"e0", x"00", x"23",
-x"0b", x"de", x"00", x"01",
-x"47", x"df", x"00", x"00",
-x"0b", x"de", x"00", x"01",
-x"47", x"c2", x"00", x"00",
-x"0b", x"de", x"00", x"01",
-x"47", x"c3", x"00", x"00",
-x"08", x"40", x"00", x"01",
-x"20", x"22", x"00", x"0f",
-x"20", x"20", x"00", x"0e",
-x"08", x"21", x"ff", x"ff",
-x"08", x"41", x"00", x"00",
-x"34", x"00", x"00", x"04",
-x"08", x"61", x"00", x"00",
-x"08", x"22", x"ff", x"ff",
-x"34", x"00", x"00", x"04",
-x"04", x"21", x"18", x"00",
-x"40", x"7e", x"00", x"00",
-x"0b", x"de", x"ff", x"ff",
-x"40", x"5e", x"00", x"00",
-x"0b", x"de", x"ff", x"ff",
-x"43", x"fe", x"00", x"00",
-x"0b", x"de", x"ff", x"ff",
-x"33", x"e0", x"00", x"00",
-x"08", x"20", x"00", x"01",
-x"40", x"7e", x"00", x"00",
-x"0b", x"de", x"ff", x"ff",
-x"40", x"5e", x"00", x"00",
-x"0b", x"de", x"ff", x"ff",
-x"43", x"fe", x"00", x"00",
-x"0b", x"de", x"ff", x"ff",
-x"33", x"e0", x"00", x"00",
-x"74", x"20", x"00", x"00",
+x"0c", x"20", x"00", x"01",
+x"c0", x"41", x"00", x"00",
+x"b1", x"02", x"00", x"00",
+x"75", x"00", x"00", x"00",
+x"15", x"08", x"ff", x"f8",
+x"75", x"00", x"00", x"00",
+x"15", x"08", x"ff", x"f8",
+x"75", x"00", x"00", x"00",
+x"15", x"08", x"ff", x"f8",
+x"75", x"00", x"00", x"00",
 x"7c", x"00", x"00", x"00",
 x"03", x"00", x"00", x"00",
 x"ff"
           );
-          signal din_counter : std_logic_vector (31 downto 0) := x"00000000";
+          signal din_counter : std_logic_vector (31 downto 0) := x"00000004";
           type din_list_type is array (4 downto 0) of std_logic_vector (7 downto 0);
           signal din_list : din_list_type := (
-x"de",
-x"ad",
-x"be",
-x"ef",
+x"31", x"0a", x"2d", x"31", 
 x"00"
           );
 
