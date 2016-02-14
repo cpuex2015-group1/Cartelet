@@ -10,8 +10,8 @@ entity top is
     generic (
 --        wtime : std_logic_vector(15 downto 0) := x"24ED" -- 90MHz 9600
 --        wtime : std_logic_vector(15 downto 0) := x"2847" -- 99MHz 9600
-        wtime : std_logic_vector(15 downto 0) := x"1ADB" -- 66MHz 9600
---        wtime : std_logic_vector(15 downto 0) := x"0242" -- 66MHz 115200
+--        wtime : std_logic_vector(15 downto 0) := x"1ADB" -- 66MHz 9600
+        wtime : std_logic_vector(15 downto 0) := x"0242" -- 66MHz 115200
 --        wtime : std_logic_vector(15 downto 0) := x"0302" -- 88MHz 115200
 --        wtime : std_logic_vector(15 downto 0) := x"2CC2" -- 110MHz (5/3) 9600
 --        wtime : std_logic_vector(15 downto 0) := x"313C" -- 121MHz 9600

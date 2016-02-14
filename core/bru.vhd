@@ -40,6 +40,7 @@ architecture struct of bru is
         rs => (others => rs_entry_init),
         bru_out => bru_out_init);
     signal r, rin : reg_type := reg_init;
+    constant zero31 : std_logic_vector(30 downto 0) := (others => '0');
 begin
     comb : process(r, bru_in)
         variable v : reg_type := reg_init;
@@ -92,7 +93,8 @@ begin
                                     tmp(31) := '1';
                                 end if;
                             when BRU_FEQ =>
-                                if (r.rs(j).lhs.value = r.rs(j).rhs.value) = r.rs(j).taken then
+                                if ((r.rs(j).lhs.value(30 downto 0) = zero31 and r.rs(j).rhs.value(30 downto 0) = zero31) or
+                                    r.rs(j).lhs.value = r.rs(j).rhs.value) = r.rs(j).taken then
                                     tmp(31) := '0';
                                 else
                                     tmp(31) := '1';
@@ -114,6 +116,7 @@ begin
                                 end if;
                             when BRU_FLE =>
                                 if ((r.rs(j).lhs.value(31) = '1' and r.rs(j).rhs.value(31) = '0') or
+                                    (r.rs(j).lhs.value(31) = '0' and r.rs(j).rhs.value(31) = '1' and r.rs(j).lhs.value(30 downto 0) = zero31 and r.rs(j).rhs.value(30 downto 0) = zero31) or
                                     (r.rs(j).lhs.value(31) = '1' and r.rs(j).rhs.value(31) = '1' and unsigned(r.rs(j).rhs.value(30 downto 0)) <= unsigned(r.rs(j).lhs.value(30 downto 0))) or
                                     (r.rs(j).lhs.value(31) = '0' and r.rs(j).rhs.value(31) = '0' and unsigned(r.rs(j).lhs.value(30 downto 0)) <= unsigned(r.rs(j).rhs.value(30 downto 0)))) = r.rs(j).taken then
 
