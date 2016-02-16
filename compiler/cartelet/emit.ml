@@ -299,9 +299,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      g'_args oc [(x, reg_cl)] ys zs p;
      let ss = stacksize () in
      assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
+     emit_ld oc "lw" reg_tmp 0 reg_cl p;
      emit_3 oc "addi" reg_sp reg_sp (string_of_imm (-(ss+1))) p;
      emit_st oc "sw" 0 reg_sp reg_ra p;
-     emit_ld oc "lw" reg_tmp 0 reg_cl p;
      emit_1 oc "jalr" reg_tmp p;
      emit_ld oc "lw" reg_ra 0 reg_sp p;
      emit_3 oc "addi" reg_sp reg_sp (string_of_imm (ss+1)) p;
