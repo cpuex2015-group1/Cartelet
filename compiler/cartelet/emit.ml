@@ -282,8 +282,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
   (* 関数呼び出しの仮想命令の実装 (caml2html: emit_call) *)
   | Tail, CallCls(x, ys, zs, p) -> (* 末尾呼び出し (caml2html: emit_tailcall) *)
      g'_args oc [(x, reg_cl)] ys zs p;
-     emit_ld oc "lw" reg_tmp 0 reg_cl p;
-     emit_1 oc "jr" reg_tmp p
+     emit_1 oc "jr" reg_jr p
   | Tail, CallDir(Id.L(x), ys, zs, p) -> (* 末尾呼び出し *)
      (match x with
       | "min_caml_fabs" | "min_caml_abs_float" | "min_caml_sqrt"
@@ -299,10 +298,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprim
      g'_args oc [(x, reg_cl)] ys zs p;
      let ss = stacksize () in
      assert(is_signed_16bit (ss+1) && is_signed_16bit (-(ss+1)));
-     emit_ld oc "lw" reg_tmp 0 reg_cl p;
      emit_3 oc "addi" reg_sp reg_sp (string_of_imm (-(ss+1))) p;
      emit_st oc "sw" 0 reg_sp reg_ra p;
-     emit_1 oc "jalr" reg_tmp p;
+     emit_1 oc "jalr" reg_jr p;
      emit_ld oc "lw" reg_ra 0 reg_sp p;
      emit_3 oc "addi" reg_sp reg_sp (string_of_imm (ss+1)) p;
      if List.mem a allregs && a <> reg_rv then
@@ -367,8 +365,11 @@ and g'_args oc x_reg_cl ys zs p =
       (fun (i, yrs) y -> (i + 1, (y, regs.(i)) :: yrs))
       (0, x_reg_cl)
       ys in
+  let yrs = List.rev yrs in
   List.iter
-    (fun (y, r) -> emit_3 oc "addi" r y (string_of_imm 0) p)
+    (fun (y, r) -> emit_3 oc "addi" r y (string_of_imm 0) p;
+		   (* jrのsrcレジスタの値をなるべく早く確定させるため、ここでlwしてしまう *)
+		   if r = reg_cl then emit_ld oc "lw" reg_jr 0 reg_cl p)
     (shuffle reg_tmp yrs);
   let (d, zfrs) =
     List.fold_left

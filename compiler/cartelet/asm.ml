@@ -72,6 +72,7 @@ let freg_zero = "%f0"
 let  reg_rv   = "%r2"  (* return value *)
 let freg_rv   = "%f2"
 
+let reg_jr = "%r26"  (* for instruction scheduling of jr *)
 let reg_hp = "%r28"  (* heap pointer *)
 let reg_sp = "%r29"  (* stack pointer *)
 let reg_ra = "%r31"  (* return address *)
