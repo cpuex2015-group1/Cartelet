@@ -260,7 +260,7 @@ begin
     mcu_in.ZD <= cpu_in.ZD;
 
 
-    comb : process (cpu_in, r, alu_out, sdu_out, bru_out, mcu_out, fpu_out, pmem_dout, reg_values, freg_values, reg_values2, freg_values2)
+    comb : process (cpu_in, r, alu_out, sdu_out, bru_out, mcu_out, fpu_out, pmem_buff, pmem_dout, reg_values, freg_values, reg_values2, freg_values2)
         variable v : reg_type := reg_init;
         type rob_wb_entry_type is record
             valid : boolean;
@@ -282,6 +282,7 @@ begin
         variable sum : integer := 0;
         variable tmp_pc : std_logic_vector(PMEM_ADDR_WIDTH + 1 downto 0) := (others => '0');
         variable fetch_pc_updated : boolean := false;
+        variable clear_rob : boolean := false;
         variable tmp_reg1 : reg_file_entry_type := reg_file_entry_init;
         variable tmp_reg2 : reg_file_entry_type := reg_file_entry_init;
         variable tmp_freg1 : reg_file_entry_type := reg_file_entry_init;
@@ -294,6 +295,7 @@ begin
         sum := 0;
         index := 0;
         fetch_pc_updated := false;
+        clear_rob := false;
         tmp_reg1 := reg_file_entry_init;
         tmp_reg2 := reg_file_entry_init;
         tmp_freg1 := reg_file_entry_init;
@@ -455,6 +457,7 @@ begin
 
                                         v.stall_exec_schedule := "1111";
                                         fetch_pc_updated := true;
+                                        clear_rob := true;
 
                                         -- rob も空にする
                                         v.rob.tail := (others => '0');
@@ -478,7 +481,25 @@ begin
                                     v.rob.entries(index).completed := true;
                                     exit COMPLETE_L1;
                                 end if;
-                            elsif r.rob.entries(index).rtype = rtype_jump or r.rob.entries(index).rtype = rtype_jal then -- TODO: あまりにも効率が悪い
+                            elsif r.rob.entries(index).rtype = rtype_jal then
+                                if index = to_integer(unsigned(r.regs(31).rtag)) then
+                                    v.regs(31).busy := false;
+                                end if;
+
+                                -- 値を書き戻す
+                                v.reg_wb(i).valid := true;
+                                v.reg_wb(i).reg_num := "11111";
+                                v.reg_wb(i).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
+                                v.reg_wb(i).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
+                                v.reg_wb(i).floating := false;
+
+                                -- cdb へ流す
+                                v.cdb(i).valid := true;
+                                v.cdb(i).rtag := std_logic_vector(to_unsigned(index, TAG_LENGTH));
+                                v.cdb(i).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
+                                v.cdb(i).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
+                                v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+                            elsif r.rob.entries(index).rtype = rtype_jump then -- TODO: あまりにも効率が悪い
                                 if i = 0 then
                                     -- jr, jal
                                     -- プログラムバッファを空にする
@@ -486,24 +507,13 @@ begin
                                     v.pbtl := 0;
 
                                     -- NOTE: ここが branch と違う
-                                    -- jal なら regs(31) に pc 待避
-                                    if r.rob.entries(index).rtype = rtype_jal then
-                                        if index = to_integer(unsigned(r.regs(31).rtag)) then
-                                            v.regs(31).busy := false;
-                                        end if;
-                                        v.reg_wb(i).valid := true;
-                                        v.reg_wb(i).reg_num := "11111";
-                                        v.reg_wb(i).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
-                                        v.reg_wb(i).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
-                                        v.reg_wb(i).floating := false;
-                                    end if;
-
                                     v.fetch_pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
                                     v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
 
 
                                     v.stall_exec_schedule := "1111";
                                     fetch_pc_updated := true;
+                                    clear_rob := true;
 
                                     -- rob も空にする
                                     v.rob.tail := (others => '0');
@@ -601,7 +611,7 @@ begin
                     end if;
                 end loop;
 
-                if fetch_pc_updated then
+                if clear_rob then
                     v.rob.head := (others => '0');
                 else
                     v.rob.head := std_logic_vector(to_unsigned(index, TAG_LENGTH));
@@ -819,6 +829,7 @@ begin
                                 when rs_jump =>
                                     -- ジャンプ先のアドレスを知りたいだけなので、レジスタの値解決ができればそれでいい
                                     -- reg1 + 0 を計算することで代用している
+                                    -- TODO: ジャンプ予測
                                     if unsigned(alu_out.free_count) > v.alu_ic then
                                         v.alu_in.inputs(v.alu_ic).command := ALU_ADD;
                                         v.alu_in.inputs(v.alu_ic).rtag := v.rob.tail;
@@ -847,6 +858,11 @@ begin
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).rtype := rtype_jal;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).value(25 downto 0) := op.addr;
 
+                                    -- プログラムバッファの tail をこの jal までにしてフェッチを待つ
+                                    -- TODO: jal は issue より前に判定してジャンプさせることができるはずなので考える
+                                    v.fetch_pc := op.addr(PMEM_ADDR_WIDTH downto 0);
+                                    fetch_pc_updated := true;
+
 
                                         v.rob.entries(to_integer(unsigned(v.rob.tail))).op := v.insts(i); -- for debug
 
@@ -856,6 +872,9 @@ begin
                                     v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                     v.issue_count := v.issue_count + 1;
+
+                                    -- jal が来たら issue やめる
+                                    exit ISSUE_L1;
                                 when rs_halt =>
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
@@ -965,7 +984,9 @@ begin
                     end if;
                     v.fetch_pc := std_logic_vector(to_unsigned(to_integer(unsigned(r.fetch_pc)) + r.fetch_count(2), PMEM_ADDR_WIDTH + 1)); -- 次に与えるアドレスの一つ目
                 else
+                    v.pbtl := v.pbhd;
                     v.fetch_count := (2 => 2, others => 0);
+                    v.stall_exec_schedule := "0111";
                 end if;
 
                 -- 常に二つずつ持ってくる

@@ -66,7 +66,7 @@ architecture struct of fpu is
     type rs_entry_type is record
         busy : boolean;
         executing : boolean;
-        outputting : boolean;
+        completed : boolean; -- fpu の各ユニットからの読み出しが終了した
         counter : std_logic_vector(2 downto 0);
         command : std_logic_vector(CMD_WIDTH downto 0);
         rtag : std_logic_vector(TAG_WIDTH downto 0);
@@ -77,14 +77,14 @@ architecture struct of fpu is
     constant rs_entry_init : rs_entry_type := (
         busy => false,
         executing => false,
-        outputting => false,
+        completed => false,
         counter => (others => '0'),
         command => (others => '0'),
         rtag => (others => '0'),
         data => (others => '0'),
         lhs => reg_file_entry_init,
         rhs => reg_file_entry_init);
-    type rs_type is array(FPU_RS_WIDTH downto 0) of rs_entry_type;
+    type rs_type is array(2 ** FPU_RS_ADDR_LENGTH - 1 downto 0) of rs_entry_type;
     type reg_type is record
         rs : rs_type;
         fadd_lhs : std_logic_vector(31 downto 0);
@@ -166,9 +166,8 @@ begin
 
     comb : process(r, fpu_in, fadd_output, fmul_output, finv_output, fsqrt_output, floor_output, ftoi_output, itof_output)
         variable v : reg_type := reg_init;
-        variable num_free_entries : std_logic_vector(FPU_RS_WIDTH downto 0);
+        variable num_free_entries : std_logic_vector(FPU_RS_ADDR_LENGTH downto 0);
         variable tmp : std_logic_vector(31 downto 0);
-        variable rs_written : boolean := false;
         variable fadd_busy : boolean := false;
         variable fmul_busy : boolean := false;
         variable finv_busy : boolean := false;
@@ -176,6 +175,9 @@ begin
         variable floor_busy : boolean := false;
         variable ftoi_busy : boolean := false;
         variable itof_busy : boolean := false;
+        type fpu_in_dones_type is array(1 downto 0) of boolean;
+        variable fpu_in_dones : fpu_in_dones_type := (others => false);
+        variable output_count : integer := 0;
     begin
         v := r;
 
@@ -187,28 +189,39 @@ begin
         ftoi_busy := false;
         itof_busy := false;
 
+        fpu_in_dones := (others => false);
+        output_count := 0;
+
+        v.fpu_out.outputs := (others => alu_out_body_entry_init);
+        v.fpu_out.free_count := (others => '0');
+
         -- reset rs and output
         if fpu_in.reset_rs then
             for i in r.rs'reverse_range loop
                 v.rs(i).busy := false;
                 v.rs(i).executing := false;
-                v.rs(i).outputting := false;
-            end loop;
-            for i in r.fpu_out.outputs'reverse_range loop
-                v.fpu_out.outputs(i).valid := false;
+                v.rs(i).completed := false;
             end loop;
             v.fpu_out.free_count := (others => '0');
         else
-            -- countdown
             for i in r.rs'reverse_range loop
-                if v.rs(i).busy and r.rs(i).counter /= "000" then
+                -- countdown
+                if r.rs(i).counter /= "000" then
                     v.rs(i).counter := std_logic_vector(unsigned(r.rs(i).counter) - 1);
                 end if;
-            end loop;
 
+                -- accepted by arbiter
+                for j in fpu_in.accepts'reverse_range loop
+                    if fpu_in.accepts(j).valid then
+                        if r.rs(i).rtag = fpu_in.accepts(j).rtag then
+                            v.rs(i).busy := false;
+                            v.rs(i).executing := false;
+                            v.rs(i).completed := false;
+                        end if;
+                    end if;
+                end loop;
 
-            -- execute
-            for i in r.rs'reverse_range loop
+                -- execute
                 if v.rs(i).busy and not v.rs(i).executing and not r.rs(i).lhs.busy and not r.rs(i).rhs.busy then
                     v.rs(i).executing := true;
                     case r.rs(i).command is
@@ -227,7 +240,7 @@ begin
                             if not fmul_busy then
                                 v.fmul_lhs := r.rs(i).lhs.value;
                                 v.fmul_rhs := r.rs(i).rhs.value;
-                                v.rs(i).counter := "001";
+                                v.rs(i).counter := "010";
                                 v.rs(i).executing := true;
                                 fmul_busy := true;
                             end if;
@@ -288,12 +301,10 @@ begin
                         when others =>
                     end case;
                 end if;
-            end loop;
 
-
-            -- 各コンポーネントからの出力を読む
-            for i in r.rs'reverse_range loop
-                if v.rs(i).busy and v.rs(i).executing and v.rs(i).counter = "000" then
+                -- read outputs from components
+                if v.rs(i).busy and v.rs(i).executing and v.rs(i).counter = "000" and not v.rs(i).completed then
+                    v.rs(i).completed := true; -- 1 clk しか実行されない
                     case v.rs(i).command is
                         when FPU_MOV =>
                             v.rs(i).data := r.rs(i).lhs.value;
@@ -326,88 +337,50 @@ begin
                         when others =>
                     end case;
                 end if;
-            end loop;
 
-
-
-            -- output
-            for i in r.fpu_out.outputs'reverse_range loop
-                if not v.fpu_out.outputs(i).valid then -- valid なものは占有されている
-                    EXEC_L2: for j in r.rs'reverse_range loop
-                        -- v.rs(j).executing に注意
-                        if v.rs(j).busy and v.rs(j).executing and v.rs(j).counter = "000" and not v.rs(j).outputting then
-                            v.rs(j).outputting := true;
-
-                            v.fpu_out.outputs(i).valid := true;
-                            v.fpu_out.outputs(i).to_rob.valid := true;
-                            v.fpu_out.outputs(i).to_rob.rtag := v.rs(j).rtag;
-                            v.fpu_out.outputs(i).to_rob.value := v.rs(j).data;
-                            exit EXEC_L2;
-                        end if;
-                    end loop;
+                -- output
+                if output_count < 2 and v.rs(i).busy and v.rs(i).completed then
+                    v.fpu_out.outputs(output_count).valid := true;
+                    v.fpu_out.outputs(output_count).to_rob.valid := true;
+                    v.fpu_out.outputs(output_count).to_rob.rtag := v.rs(i).rtag;
+                    v.fpu_out.outputs(output_count).to_rob.value := v.rs(i).data;
+                    output_count := output_count + 1;
                 end if;
-            end loop;
 
-
-            -- insert into RS
-            for i in fpu_in.inputs'reverse_range loop
-                INSERT_L2: for j in r.rs'reverse_range loop
-                    if fpu_in.inputs(i).command /= FPU_NOP and not rs_written and not v.rs(j).busy then
-                        v.rs(j).busy := true;
-                        v.rs(j).command := fpu_in.inputs(i).command;
-                        v.rs(j).rtag := fpu_in.inputs(i).rtag;
-                        v.rs(j).lhs := fpu_in.inputs(i).lhs;
-                        v.rs(j).rhs := fpu_in.inputs(i).rhs;
-
-                        exit INSERT_L2;
+                -- insert into RS
+                for j in fpu_in.inputs'reverse_range loop
+                    if not fpu_in_dones(j) and fpu_in.inputs(j).command /= FPU_NOP and not v.rs(i).busy then
+                        v.rs(i).busy := true;
+                        v.rs(i).executing := false;
+                        v.rs(i).completed := false;
+                        v.rs(i).command := fpu_in.inputs(j).command;
+                        v.rs(i).rtag := fpu_in.inputs(j).rtag;
+                        v.rs(i).lhs := fpu_in.inputs(j).lhs;
+                        v.rs(i).rhs := fpu_in.inputs(j).rhs;
+                        fpu_in_dones(j) := true;
                     end if;
                 end loop;
-            end loop;
 
-            -- watch the CDB
-            for i in fpu_in.cdb'reverse_range loop
-                if fpu_in.cdb(i).valid then
-                    for j in r.rs'reverse_range loop
-                        if v.rs(j).lhs.busy and v.rs(j).lhs.rtag = fpu_in.cdb(i).rtag then
-                            v.rs(j).lhs.busy := false;
-                            v.rs(j).lhs.value := fpu_in.cdb(i).value;
+                -- watch the CDB
+                for j in fpu_in.cdb'reverse_range loop
+                    if fpu_in.cdb(j).valid then
+                        if v.rs(i).lhs.busy and v.rs(i).lhs.rtag = fpu_in.cdb(j).rtag then
+                            v.rs(i).lhs.busy := false;
+                            v.rs(i).lhs.value := fpu_in.cdb(j).value;
                         end if;
-                        if v.rs(j).rhs.busy and v.rs(j).rhs.rtag = fpu_in.cdb(i).rtag then
-                            v.rs(j).rhs.busy := false;
-                            v.rs(j).rhs.value := fpu_in.cdb(i).value;
+                        if v.rs(i).rhs.busy and v.rs(i).rhs.rtag = fpu_in.cdb(j).rtag then
+                            v.rs(i).rhs.busy := false;
+                            v.rs(i).rhs.value := fpu_in.cdb(j).value;
                         end if;
-                    end loop;
-                end if;
-            end loop;
+                    end if;
+                end loop;
 
-            -- busy or not
-            v.fpu_out.free_count := (others => '0');
-            for i in v.rs'reverse_range loop
-                if not(v.rs(i).busy) then
+                -- update free_count
+                if not v.rs(i).busy then
                     v.fpu_out.free_count := std_logic_vector(unsigned(v.fpu_out.free_count) + 1);
                 end if;
             end loop;
-
-            -- accepted by arbiter
-            for i in fpu_in.accepts'reverse_range loop
-                if fpu_in.accepts(i).valid then
-                    for j in r.rs'reverse_range loop
-                        if v.rs(j).rtag = fpu_in.accepts(i).rtag then
-                            v.rs(j).busy := false;
-                            v.rs(j).executing := false;
-                            v.rs(j).outputting := false;
-                        end if;
-                    end loop;
-                    for j in r.fpu_out.outputs'reverse_range loop
-                        if v.fpu_out.outputs(j).to_rob.rtag = fpu_in.accepts(i).rtag then
-                            v.fpu_out.outputs(j).valid := false;
-                        end if;
-                    end loop;
-                end if;
-            end loop;
         end if;
-
-
 
         fpu_out.outputs <= r.fpu_out.outputs; -- 出力は最短でも 1 クロック後
         fpu_out.free_count <= v.fpu_out.free_count; -- 空き rs 数はすぐに

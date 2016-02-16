@@ -6,10 +6,15 @@ package types is
     constant RECEIVER_DATA_WIDTH : integer := 7;
     constant SINGLE_PMEM_ADDR_WIDTH : integer := 13;
     constant PMEM_ADDR_WIDTH : integer := 14;
-    constant SRAM_ADDR_WIDTH : integer := 19;
+    constant SRAM_ADDR_LENGTH : integer := 20;
+    constant SRAM_ADDR_WIDTH : integer := SRAM_ADDR_LENGTH - 1;
     constant ROB_ADDR_WIDTH : integer := 4;
-    constant ALU_RS_WIDTH : integer := 1;
-    constant FPU_RS_WIDTH : integer := 1;
+    constant ALU_RS_ADDR_LENGTH : integer := 2;
+--    constant ALU_RS_WIDTH : integer := ALU_RS_ADDR_LENGTH - 1;
+    constant SDU_RS_ADDR_LENGTH : integer := 1;
+--    constant SDU_RS_WIDTH : integer := SDU_RS_ADDR_LENGTH - 1;
+    constant FPU_RS_ADDR_LENGTH : integer := 1;
+--    constant FPU_RS_WIDTH : integer := FPU_RS_ADDR_LENGTH - 1;
     constant MCU_RS_WIDTH : integer := 1;
     constant CONCURRENCY : integer := 2;
     constant TAG_LENGTH : integer := 3;
@@ -18,6 +23,7 @@ package types is
     constant IMM_WIDTH : integer := 15;
     constant MCU_STORE_BUFF_WIDTH : integer := 1;
     constant CACHE_WIDTH : integer := 2;
+    constant CACHE_TAG_LENGTH : integer := 10;
 
 
 
@@ -234,7 +240,7 @@ package types is
         to_rob => alu_out_to_rob_init);
     type alu_out_body_type is array(1 downto 0) of alu_out_body_entry_type;
     type alu_out_type is record
-        free_count : std_logic_vector(ALU_RS_WIDTH downto 0);
+        free_count : std_logic_vector(ALU_RS_ADDR_LENGTH downto 0);
         outputs : alu_out_body_type;
     end record;
     constant alu_out_init : alu_out_type := (
@@ -334,7 +340,7 @@ package types is
         cdb => cdb_init,
         accepts => (others => accept_init));
     type sdu_out_type is record
-        free_count : std_logic_vector(ALU_RS_WIDTH downto 0);
+        free_count : std_logic_vector(SDU_RS_ADDR_LENGTH downto 0);
         to_rob : sdu_out_to_rob_type;
     end record;
     constant sdu_out_init : sdu_out_type := (

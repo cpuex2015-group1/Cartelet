@@ -23,7 +23,7 @@ architecture struct of sdu is
         executing => false,
         rtag => (others => '0'),
         reg => reg_file_entry_init);
-    type rs_type is array(1 downto 0) of rs_entry_type;
+    type rs_type is array(2 ** SDU_RS_ADDR_LENGTH - 1 downto 0) of rs_entry_type;
     type reg_type is record
         rs : rs_type;
         sdu_out : sdu_out_type;
