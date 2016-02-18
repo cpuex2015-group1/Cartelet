@@ -17,9 +17,10 @@ architecture struct of fmul is
     return std_logic_vector
   is
     variable sign           : std_logic;
+    variable flag           : std_logic;
     variable tmp_expo       : std_logic_vector (8 downto 0);
     variable tmp_frac       : std_logic_vector (47 downto 0);
-    variable step1_out      : std_logic_vector (34 downto 0);
+    variable step1_out      : std_logic_vector (35 downto 0);
 
   begin
 
@@ -27,12 +28,18 @@ architecture struct of fmul is
     tmp_expo := ('0' & input1(30 downto 23)) + ('0' & input2(30 downto 23));
     tmp_frac := ('1' & input1(22 downto 0)) * ('1' & input2(22 downto 0));
 
-    step1_out := sign & tmp_expo & tmp_frac(47 downto 23);
+    if (input1(30 downto 23) = x"00") or (input2(30 downto 23) = x"00") then
+      flag := '1';
+    else
+      flag := '0';
+    end if;
+
+    step1_out := sign & flag & tmp_expo & tmp_frac(47 downto 23);
 
     return step1_out;
   end step1;
 
-  function step2(step2_in : std_logic_vector(33 downto 0))
+  function step2(step2_in : std_logic_vector(34 downto 0))
     return std_logic_vector
   is
     variable tmp_expo : std_logic_vector (8 downto 0);
@@ -49,19 +56,19 @@ architecture struct of fmul is
       frac     := step2_in(22 downto 0);
     end if;
 
-    if (tmp_expo(8) or tmp_expo(7)) = '1' then
-      expo := tmp_expo - 127;
-      result := frac & expo(7 downto 0);
-    else
+    if (step2_in(34) = '1')  or ((tmp_expo(8) or tmp_expo(7)) = '0') then
       result := "0000000000000000000000000000000";
+    else
+      expo := tmp_expo - 127;
+      result := expo(7 downto 0) & frac;
     end if;
 
     return result;
   end step2;
 
   signal sign      : std_logic;
-  signal step1_out : std_logic_vector (34 downto 0);
-  signal step2_in  : std_logic_vector (33 downto 0);
+  signal step1_out : std_logic_vector (35 downto 0);
+  signal step2_in  : std_logic_vector (34 downto 0);
   signal expofrac  : std_logic_vector (30 downto 0);
 
 begin
@@ -74,8 +81,8 @@ begin
   begin
     if rising_edge(clk) then
 
-      sign     <= step1_out(34);
-      step2_in <= step1_out(33 downto 0);
+      sign     <= step1_out(35);
+      step2_in <= step1_out(34 downto 0);
 
     end if;
   end process;

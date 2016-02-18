@@ -51,7 +51,8 @@ architecture struct of fadd is
   function step1(input1 : std_logic_vector(31 downto 0); input2 : std_logic_vector(31 downto 0))
     return std_logic_vector
   is
-    variable way            : std_logic;
+    variable way1           : std_logic;
+    variable way2           : std_logic;
     variable w_sign         : std_logic;
     variable is_sub         : std_logic;
     variable tmp_expo       : std_logic_vector (7 downto 0);
@@ -62,7 +63,7 @@ architecture struct of fadd is
     variable l_frac_b       : std_logic_vector (22 downto 0);
     variable shifted_frac_b : std_logic_vector (24 downto 0);
     variable tmp_frac_b     : std_logic_vector (24 downto 0);
-    variable step1_out      : std_logic_vector (82 downto 0);
+    variable step1_out      : std_logic_vector (83 downto 0);
 
   begin
 
@@ -98,13 +99,20 @@ architecture struct of fadd is
 
     is_sub := input1(31) xor input2(31);
 
-    if (expodiff(7 downto 1) = "0000000") and (is_sub = '1') then
-      way := '1';
+    if (input2(30 downto 23) = x"FF") or (input2(30 downto 23) = x"FF") then
+      way1 := '1';
     else
-      way := '0';
+      way1 := '0';
     end if;
 
-    step1_out := way & w_sign & is_sub & w_frac_a & shifted_frac_a & tmp_expo & tmp_frac_b;
+    if (expodiff(7 downto 1) = "0000000") and (is_sub = '1') then
+      way2 := '1';
+    else
+      way2 := '0';
+    end if;
+
+    step1_out := way1 & way2 & w_sign & tmp_frac_b & tmp_expo & w_frac_a & shifted_frac_a & is_sub;
+
     return step1_out;
 
   end step1;
@@ -121,26 +129,26 @@ architecture struct of fadd is
     variable s_frac     : std_logic_vector (22 downto 0);
     variable result     : std_logic_vector (30 downto 0);
   begin
-    a_tmp_frac := ("01" & step2_in(54 downto 32)) + ("0" & step2_in(31 downto 8));
-    s_tmp_frac := ("1" & step2_in(54 downto 32)) - step2_in(31 downto 8);
+    a_tmp_frac := ("01" & step2_in(47 downto 25)) + ("0" & step2_in(24 downto 1));
+    s_tmp_frac := ("1" & step2_in(47 downto 25)) - step2_in(24 downto 1);
     
     if a_tmp_frac(24) = '0' then
       a_frac := a_tmp_frac(22 downto 0);
-      a_expo := step2_in(7 downto 0);
+      a_expo := step2_in(55 downto 48);
     else
       a_frac := a_tmp_frac(23 downto 1);
-      a_expo := step2_in(7 downto 0) + 1;
+      a_expo := step2_in(55 downto 48) + 1;
     end if;
 
     if s_tmp_frac(23) = '1' then
       s_frac := s_tmp_frac(22 downto 0);
-      s_expo := step2_in(7 downto 0);
+      s_expo := step2_in(55 downto 48);
     else
       s_frac := s_tmp_frac(21 downto 0) & '0';
-      s_expo := step2_in(7 downto 0) - 1;
+      s_expo := step2_in(55 downto 48) - 1;
     end if;
 
-    if step2_in(55) = '0' then
+    if step2_in(0) = '0' then
       result := a_expo & a_frac;
     else
       result := s_expo & s_frac;
@@ -157,79 +165,79 @@ architecture struct of fadd is
     variable frac   : std_logic_vector (22 downto 0);
     variable result : std_logic_vector (30 downto 0);
   begin
-    if step2b_in(24) = '1' then
-      frac  := step2b_in(23 downto 1);
+    if step2b_in(32) = '1' then
+      frac  := step2b_in(31 downto 9);
       count := "00000";
-    elsif step2b_in(23) = '1' then
-      frac  := step2b_in(22 downto 0);
+    elsif step2b_in(31) = '1' then
+      frac  := step2b_in(30 downto 8);
       count := "00001";
-    elsif step2b_in(22) = '1' then
-      frac  := step2b_in(21 downto 0) & "0";
+    elsif step2b_in(30) = '1' then
+      frac  := step2b_in(29 downto 8) & "0";
       count := "00010";
-    elsif step2b_in(21) = '1' then
-      frac  := step2b_in(20 downto 0) & "00";
+    elsif step2b_in(29) = '1' then
+      frac  := step2b_in(28 downto 8) & "00";
       count := "00011";
-    elsif step2b_in(20) = '1' then
-      frac  := step2b_in(19 downto 0) & "000";
+    elsif step2b_in(28) = '1' then
+      frac  := step2b_in(27 downto 8) & "000";
       count := "00100";
-    elsif step2b_in(19) = '1' then
-      frac  := step2b_in(18 downto 0) & "0000";
+    elsif step2b_in(27) = '1' then
+      frac  := step2b_in(26 downto 8) & "0000";
       count := "00101";
-    elsif step2b_in(18) = '1' then
-      frac  := step2b_in(17 downto 0) & "00000";
+    elsif step2b_in(26) = '1' then
+      frac  := step2b_in(25 downto 8) & "00000";
       count := "00110";
-    elsif step2b_in(17) = '1' then
-      frac  := step2b_in(16 downto 0) & "000000";
+    elsif step2b_in(25) = '1' then
+      frac  := step2b_in(24 downto 8) & "000000";
       count := "00111";
-    elsif step2b_in(16) = '1' then
-      frac  := step2b_in(15 downto 0) & "0000000";
+    elsif step2b_in(24) = '1' then
+      frac  := step2b_in(23 downto 8) & "0000000";
       count := "01000";
-    elsif step2b_in(15) = '1' then
-      frac  := step2b_in(14 downto 0) & "00000000";
+    elsif step2b_in(23) = '1' then
+      frac  := step2b_in(22 downto 8) & "00000000";
       count := "01001";
-    elsif step2b_in(14) = '1' then
-      frac  := step2b_in(13 downto 0) & "000000000";
+    elsif step2b_in(22) = '1' then
+      frac  := step2b_in(21 downto 8) & "000000000";
       count := "01010";
-    elsif step2b_in(13) = '1' then
-      frac  := step2b_in(12 downto 0) & "0000000000";
+    elsif step2b_in(21) = '1' then
+      frac  := step2b_in(20 downto 8) & "0000000000";
       count := "01011";
-    elsif step2b_in(12) = '1' then
-      frac  := step2b_in(11 downto 0) & "00000000000";
+    elsif step2b_in(20) = '1' then
+      frac  := step2b_in(19 downto 8) & "00000000000";
       count := "01100";
-    elsif step2b_in(11) = '1' then
-      frac  := step2b_in(10 downto 0)  & "000000000000";
+    elsif step2b_in(19) = '1' then
+      frac  := step2b_in(18 downto 8)  & "000000000000";
       count := "01101";
-    elsif step2b_in(10) = '1' then
-      frac  := step2b_in(9 downto 0)  & "0000000000000";
+    elsif step2b_in(18) = '1' then
+      frac  := step2b_in(17 downto 8)  & "0000000000000";
       count := "01110";
-    elsif step2b_in(9) = '1' then
-      frac  := step2b_in(8 downto 0)  & "00000000000000";
+    elsif step2b_in(17) = '1' then
+      frac  := step2b_in(16 downto 8)  & "00000000000000";
       count := "01111";
-    elsif step2b_in(8) = '1' then
-      frac  := step2b_in(7 downto 0)  & "000000000000000";
+    elsif step2b_in(16) = '1' then
+      frac  := step2b_in(15 downto 8)  & "000000000000000";
       count := "10000";
-    elsif step2b_in(7) = '1' then
-      frac  := step2b_in(6 downto 0)  & "0000000000000000";
+    elsif step2b_in(15) = '1' then
+      frac  := step2b_in(14 downto 8)  & "0000000000000000";
       count := "10001";
-    elsif step2b_in(6) = '1' then
-      frac  := step2b_in(5 downto 0)  & "00000000000000000";
+    elsif step2b_in(14) = '1' then
+      frac  := step2b_in(13 downto 8)  & "00000000000000000";
       count := "10010";
-    elsif step2b_in(5) = '1' then
-      frac  := step2b_in(4 downto 0)  & "000000000000000000";
+    elsif step2b_in(13) = '1' then
+      frac  := step2b_in(12 downto 8)  & "000000000000000000";
       count := "10011";
-    elsif step2b_in(4) = '1' then
-      frac  := step2b_in(3 downto 0)  & "0000000000000000000";
+    elsif step2b_in(12) = '1' then
+      frac  := step2b_in(11 downto 8)  & "0000000000000000000";
       count := "10100";
-    elsif step2b_in(3) = '1' then
-      frac  := step2b_in(2 downto 0)  & "00000000000000000000";
+    elsif step2b_in(11) = '1' then
+      frac  := step2b_in(10 downto 8)  & "00000000000000000000";
       count := "10101";
-    elsif step2b_in(2) = '1' then
-      frac  := step2b_in(1 downto 0)  & "000000000000000000000";
+    elsif step2b_in(10) = '1' then
+      frac  := step2b_in(9 downto 8)  & "000000000000000000000";
       count := "10110";
-    elsif step2b_in(1) = '1' then
-      frac  := step2b_in(0 downto 0)  & "0000000000000000000000";
+    elsif step2b_in(9) = '1' then
+      frac  := step2b_in(8 downto 8)  & "0000000000000000000000";
       count := "10111";
-    elsif step2b_in(0) = '1' then
+    elsif step2b_in(8) = '1' then
       frac  := "00000000000000000000000";
       count := "11000";
     else
@@ -237,10 +245,10 @@ architecture struct of fadd is
       count := "11100";
     end if;
 
-    if (count(4 downto 2) = "111") or (count>step2b_in(32 downto 25)) then
+    if (count(4 downto 2) = "111") or (count>step2b_in(7 downto 0)) then
       expo := x"00";
     else
-      expo := step2b_in(32 downto 25) - count;
+      expo := step2b_in(7 downto 0) - count;
     end if;
 
     result := expo & frac;
@@ -249,9 +257,10 @@ architecture struct of fadd is
   end step2b;
 
 
-  signal way       : std_logic;
+  signal way1      : std_logic;
+  signal way2      : std_logic;
   signal w_sign    : std_logic;
-  signal step1_out : std_logic_vector (82 downto 0);
+  signal step1_out : std_logic_vector (83 downto 0);
   signal step2_in  : std_logic_vector (80 downto 0);
   signal expofrac  : std_logic_vector (30 downto 0);
 
@@ -259,8 +268,9 @@ begin
 
   step1_out <= step1(input1,input2);
 
-  expofrac  <= step2a(step2_in(80 downto 25)) when way = '0' else
-               step2b(step2_in(32 downto 0));
+  expofrac  <= step2_in(55 downto 25) when way1 = '1' else
+               step2a(step2_in(55 downto 0)) when way2 = '0' else
+               step2b(step2_in(80 downto 48));
 
   output    <= w_sign & expofrac;
 
@@ -268,7 +278,8 @@ begin
   begin
     if rising_edge(clk) then
 
-      way       <= step1_out(82);
+      way1      <= step1_out(83);
+      way2      <= step1_out(82);
       w_sign    <= step1_out(81);
       step2_in  <= step1_out(80 downto 0);
 
