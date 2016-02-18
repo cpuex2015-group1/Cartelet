@@ -99,7 +99,7 @@ architecture struct of fadd is
 
     is_sub := input1(31) xor input2(31);
 
-    if (input2(30 downto 23) = x"FF") or (input2(30 downto 23) = x"FF") then
+    if (input2(30 downto 23) = x"00") or (input2(30 downto 23) = x"00") then
       way1 := '1';
     else
       way1 := '0';
