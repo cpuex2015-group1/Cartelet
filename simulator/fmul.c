@@ -1,144 +1,40 @@
-#include <stdio.h>
 #include <stdint.h>
-#include "float.h"
-#include "fmul.h"
 
-typedef union exponential
+uint32_t fmul(uint32_t input1, uint32_t input2)
 {
-	struct
-	{
-		uint32_t base: 8;
-		uint32_t uf: 1;
-		uint32_t of: 1;
-		uint32_t none: 22;
-	};
-	uint32_t ui;
-} exponential;
+	uint32_t sign1,sign2,sign,expo1,expo2,flag,tmp_expo1,tmp_expo2,expo,frac1,frac2,frac,result;
+	uint64_t tmp_frac;
 
-uint32_t fmul (uint32_t _a, uint32_t _b)
-{
-	uint64_t tmp;
-	int inf, zero, a_nan, b_nan, a_deno, b_deno;
-	int a_deno_count, b_deno_count;
-	int a_inf, b_inf, a_zero, b_zero;
-	f32_uint a, b, c, hh, hl, lh, c_frac, a_hi, b_hi;
-	exponential c_expo;
+	sign1 = input1>>31;
+	sign2 = input2>>31;
+	expo1 = (input1<<1)>>24;
+	expo2 = (input2<<1)>>24;
+	frac1 = (input1<<9)>>9;
+	frac2 = (input2<<9)>>9;
 
-	a.ui = _a;
-	b.ui = _b;
+	sign = sign1^sign2;
+	tmp_expo1 = expo1 + expo2;
+	tmp_frac = (uint64_t)(0x800000 | frac1) * (uint64_t)(0x800000 | frac2);
 
-	a_nan  = (a.expo == (1<<8)-1) && (a.frac != 0);
-	a_inf  = (a.expo == (1<<8)-1) && (a.frac == 0);
+	if((expo1==0)||(expo2==0)) flag = 1;
+	else flag = 0;
 
-	a_zero = (a.expo == 0) && (a.frac == 0);
-	a_deno = (a.expo == 0) && (a.frac != 0);
-
-	b_nan  = (b.expo == (1<< 8)-1) && (b.frac != 0);
-	b_inf  = (b.expo == (1<< 8)-1) && (b.frac == 0);
-	b_zero = (b.expo == 0) && (b.frac == 0);
-	b_deno = (b.expo == 0) && (b.frac != 0);
-
-	inf  = a_inf  || b_inf;
-	zero = a_zero || b_zero;
-
-	c.sign = a.sign ^ b.sign;
-	c_expo.ui = a.expo + b.expo + ((1<<7) + 1);
-
-	a_hi.ui = (a_deno ? a.mhi : (a.mhi|IMPL1));
-	b_hi.ui = (b_deno ? b.mhi : (b.mhi|IMPL1));
-
-	a_hi.ui = a.mhi | IMPL1;
-	b_hi.ui = b.mhi | IMPL1;
-
-	hh.ui = a_hi.ui * b_hi.ui;
-	hl.ui = a_hi.ui * b.mlo;
-	lh.ui = a.mlo * b_hi.ui;
-	c_frac.ui = (hh.ui<<1) + 1 + (hl.ui>>10) + (lh.ui>>10);
-
-	if (a_deno || b_deno)
-	{
-		int i;
-		for (i=26; i>0; i--)
-		{
-
-			if (c_frac.ui>>i)
-			{
-				c_expo.ui += (i-26);
-				if (i>23)
-				{
-					c_frac.ui += c_frac.ui & (1<<(i-24));
-					c_frac.ui >>= (i-23);
-				} else
-				if (i!=23)
-				{
-					c_frac.ui <<= (23-i);
-					c_frac.ui += 1<<(22-i);
-				}
-				break;
-			}
-		}
-	} else
-	{
-		if (c_frac.q26)
-		{
-			c_expo.ui += 1;
-			c_frac.ui += c_frac.q02<<2;
-			c_frac.ui >>= 3;
-		} else
-		{
-			c_expo.ui += 0;
-			c_frac.ui += c_frac.q01<<1;
-			c_frac.ui >>= 2;
-		}
+	if((tmp_frac>>47)==1){
+		tmp_expo2 = tmp_expo1 + 1;
+		frac = (0x7FFFFF) & ((uint32_t)(tmp_frac>>24));
+	}
+	else{
+		tmp_expo2 = tmp_expo1;
+		frac = (0x7FFFFF) & ((uint32_t)(tmp_frac>>23));
 	}
 
-	if (b_nan)
-	{
-		c.sign = b.sign;
-		c.expo = (1<<8)-1;
-		c.frac = (1<<22) | b.frac;
-	} else
-	if (a_nan)
-	{
-		c.sign = a.sign;
-		c.expo = (1<<8)-1;
-		c.frac = (1<<22) | a.frac;
-	} else
-	// if ((a_inf || b_inf) && (a_zero || b_zero))
-	// {
-	// 	c.sign = c.sign;
-	// 	c.expo = (1<<8)-1;
-	// 	c.frac = (1<<22);
-	// } else
-	if (a_inf || b_inf)
-	{
-		c.sign = c.sign;
-		c.expo = (1<<8)-1;
-		c.frac = 0;
-	} else
-	// if (a_zero || b_zero)
-	// {
-	// 	c.sign = c.sign;
-	// 	c.expo = 0;
-	// 	c.frac = 0;
-	// } else
-	if (c_expo.of || (c_expo.uf &(c_expo.base==(1<<8)-1))) //overflow := 1x,xxxx,xxxx
-	{
-		c.sign = c.sign;
-		c.expo = (1<<8)-1;
-		c.frac = 0;
-	} else
-	if (!c_expo.uf || !c_expo.base) //underflow := 00,xxxx,xxxx or 01,0000,0000
-	{
-		c.sign = c.sign;
-		c.expo = 0;
-		// c.frac = c_frac.frac;
-		c.frac = 0;
-	} else
-	{
-		c.sign = c.sign;
-		c.expo = c_expo.base;
-		c.frac = c_frac.frac;
+	if((flag==1)||(((tmp_expo2>>8)|(tmp_expo2>>7))==0)) result = (sign<<31);	
+	else{
+		expo = tmp_expo2 - 127;
+		expo = 0xFF & expo;
+		result = (sign<<31) | (expo<<23) | frac;
 	}
-	return c.ui;
+
+	return result;
 }
+
