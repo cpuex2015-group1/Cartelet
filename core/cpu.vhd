@@ -498,42 +498,47 @@ begin
                                 v.cdb(i).rtag := std_logic_vector(to_unsigned(index, TAG_LENGTH));
                                 v.cdb(i).value(31 downto PMEM_ADDR_WIDTH + 1) := (others => '0');
                                 v.cdb(i).value(PMEM_ADDR_WIDTH downto 0) := v.pc; -- 上ですでに +1 しているので pc + 1
+
                                 v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
-                            elsif r.rob.entries(index).rtype = rtype_jump then -- TODO: あまりにも効率が悪い
-                                if i = 0 then
-                                    -- jr, jal
-                                    -- プログラムバッファを空にする
-                                    v.pbhd := 0;
-                                    v.pbtl := 0;
-
-                                    -- NOTE: ここが branch と違う
-                                    v.fetch_pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+                            elsif r.rob.entries(index).rtype = rtype_jump then
+                                if r.rob.entries(index).value(31) = '1' then -- 1 ならフェッチされているのでフラッシュする必要なし
                                     v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
-
-
-                                    v.stall_exec_schedule := "1111";
-                                    fetch_pc_updated := true;
-                                    clear_rob := true;
-
-                                    -- rob も空にする
-                                    v.rob.tail := (others => '0');
-                                    v.rob.entries := (others => rob_entry_init);
-
-                                    -- rs も空にする
-                                    v.reset_rs := true;
-
-                                    -- busy な reg も解放する
-                                    for j in r.regs'reverse_range loop
-                                        v.regs(j).busy := false;
-                                        v.fregs(j).busy := false;
-                                    end loop;
                                 else
-                                    v.pc := old_pc;
-                                    v.rob.entries(index).valid := true;
-                                    v.rob.entries(index).completed := true;
-                                end if;
+                                    if i = 0 then
+                                        -- jr, jal
+                                        -- プログラムバッファを空にする
+                                        v.pbhd := 0;
+                                        v.pbtl := 0;
 
-                                exit COMPLETE_L1;
+                                        -- NOTE: ここが branch と違う
+                                        v.fetch_pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+                                        v.pc := r.rob.entries(index).value(PMEM_ADDR_WIDTH downto 0);
+
+
+                                        v.stall_exec_schedule := "1111";
+                                        fetch_pc_updated := true;
+                                        clear_rob := true;
+
+                                        -- rob も空にする
+                                        v.rob.tail := (others => '0');
+                                        v.rob.entries := (others => rob_entry_init);
+
+                                        -- rs も空にする
+                                        v.reset_rs := true;
+
+                                        -- busy な reg も解放する
+                                        for j in r.regs'reverse_range loop
+                                            v.regs(j).busy := false;
+                                            v.fregs(j).busy := false;
+                                        end loop;
+                                    else
+                                        v.pc := old_pc;
+                                        v.rob.entries(index).valid := true;
+                                        v.rob.entries(index).completed := true;
+                                    end if;
+
+                                    exit COMPLETE_L1;
+                                end if;
                             elsif r.rob.entries(index).rtype = rtype_send then
                                 -- send
                                 if not cpu_in.sender_busy and not completed_send then
@@ -549,7 +554,7 @@ begin
                             elsif r.rob.entries(index).rtype = rtype_store then
                                 -- ここで本当にメモリへ書き込む
                                 v.mcu_in.exec_store(i).valid := true;
-                                v.mcu_in.exec_store(i).buff_index := r.rob.entries(index).value(MCU_STORE_BUFF_WIDTH downto 0);
+                                v.mcu_in.exec_store(i).buff_index := r.rob.entries(index).value(MCU_STORE_BUFF_ADDR_LENGTH - 1 downto 0);
                             elsif r.rob.entries(index).rtype = rtype_recv then
                                 -- receive
                                 if not recv_busy and cpu_in.recv.valid then
@@ -827,13 +832,21 @@ begin
                                         exit ISSUE_L1;
                                     end if;
                                 when rs_jump =>
-                                    -- ジャンプ先のアドレスを知りたいだけなので、レジスタの値解決ができればそれでいい
-                                    -- reg1 + 0 を計算することで代用している
-                                    -- TODO: ジャンプ予測
                                     if unsigned(alu_out.free_count) > v.alu_ic then
+                                        -- もう飛び先がわかっていればフェッチ先を変えてしまう
+                                        if not tmp_reg1.busy then
+                                            v.fetch_pc := tmp_reg1.value(PMEM_ADDR_WIDTH downto 0);
+                                            fetch_pc_updated := true;
+                                        end if;
+
+                                        -- ジャンプ先のアドレスを知りたいだけなので、レジスタの値解決ができればそれでいい
+                                        -- reg1 + 0 を計算することで代用している
                                         v.alu_in.inputs(v.alu_ic).command := ALU_ADD;
                                         v.alu_in.inputs(v.alu_ic).rtag := v.rob.tail;
                                         v.alu_in.inputs(v.alu_ic).lhs := tmp_reg1;
+                                        if not tmp_reg1.busy then
+                                            v.alu_in.inputs(v.alu_ic).lhs.value(31) := '1'; -- もう fetch しているフラグ
+                                        end if;
                                         v.alu_in.inputs(v.alu_ic).rhs.busy := false;
                                         v.alu_in.inputs(v.alu_ic).rhs.rtag := (others => '-');
                                         v.alu_in.inputs(v.alu_ic).rhs.value(31 downto 0) := (others => '0');
@@ -848,9 +861,8 @@ begin
                                         v.rob.tail := std_logic_vector(unsigned(v.rob.tail) + 1);
 
                                         v.alu_ic := v.alu_ic + 1;
-                                    else
-                                        exit ISSUE_L1;
                                     end if;
+                                    exit ISSUE_L1;
                                 when rs_jal =>
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))) := rob_entry_init;
                                     v.rob.entries(to_integer(unsigned(v.rob.tail))).valid := true;
@@ -905,7 +917,15 @@ begin
                 v.accepts := (others => accept_init);
                 rob_wb := (others => rob_wb_entry_init);
                 for i in r.cdb'reverse_range loop
-                    if fpu_out.outputs(i).valid then -- FPU が最優先
+                    if mcu_out.outputs(i).valid then
+                        rob_wb(i).valid := true;
+                        rob_wb(i).completed := true;
+                        rob_wb(i).rtag := mcu_out.outputs(i).to_rob.rtag;
+                        rob_wb(i).value := mcu_out.outputs(i).to_rob.value;
+
+                        v.accepts(i).valid := true;
+                        v.accepts(i).rtag := mcu_out.outputs(i).to_rob.rtag;
+                    elsif fpu_out.outputs(i).valid then -- FPU が最優先
                         rob_wb(i).valid := true;
                         rob_wb(i).completed := true;
                         rob_wb(i).rtag := fpu_out.outputs(i).to_rob.rtag;
@@ -937,14 +957,6 @@ begin
 
                         v.accepts(i).valid := true;
                         v.accepts(i).rtag := bru_out.output.to_rob.rtag;
-                    elsif mcu_out.outputs(i).valid then
-                        rob_wb(i).valid := true;
-                        rob_wb(i).completed := true;
-                        rob_wb(i).rtag := mcu_out.outputs(i).to_rob.rtag;
-                        rob_wb(i).value := mcu_out.outputs(i).to_rob.value;
-
-                        v.accepts(i).valid := true;
-                        v.accepts(i).rtag := mcu_out.outputs(i).to_rob.rtag;
                     end if;
                 end loop;
 

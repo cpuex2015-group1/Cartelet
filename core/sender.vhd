@@ -7,7 +7,7 @@ use work.types.all;
 entity sender is
     generic (
         wtime : std_logic_vector(15 downto 0) := x"1ADB";
-        SENDER_FIFO_ADDR_LENGTH : integer := 2
+        SENDER_FIFO_ADDR_LENGTH : integer := 5
     );
     port (
         clk : in std_logic;

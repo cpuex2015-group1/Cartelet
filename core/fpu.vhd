@@ -22,10 +22,13 @@ architecture struct of fpu is
 
     component fmul is
       Port (
-        --clk: in std_logic;
-        a : in  std_logic_vector (31 downto 0);
-        b : in  std_logic_vector (31 downto 0);
-        c : out std_logic_vector (31 downto 0));
+        clk: in std_logic;
+        input1 : in  std_logic_vector (31 downto 0);
+        input2 : in  std_logic_vector (31 downto 0);
+        output : out std_logic_vector (31 downto 0));
+--        a : in  std_logic_vector (31 downto 0);
+--        b : in  std_logic_vector (31 downto 0);
+--        c : out std_logic_vector (31 downto 0));
     end component;
 
     component finv is
@@ -129,9 +132,13 @@ begin
     );
 
     fmul1: fmul port map (
-        a => r.fmul_lhs,
-        b => r.fmul_rhs,
-        c => fmul_output
+        clk => clk,
+        input1 => r.fmul_lhs,
+        input2 => r.fmul_rhs,
+        output => fmul_output
+--        a => r.fmul_lhs,
+--        b => r.fmul_rhs,
+--        c => fmul_output
     );
 
     finv1: finv port map (
@@ -223,7 +230,6 @@ begin
 
                 -- execute
                 if v.rs(i).busy and not v.rs(i).executing and not r.rs(i).lhs.busy and not r.rs(i).rhs.busy then
-                    v.rs(i).executing := true;
                     case r.rs(i).command is
                         when FPU_MOV =>
                             v.rs(i).counter := "000";
@@ -348,7 +354,7 @@ begin
                 end if;
 
                 -- insert into RS
-                for j in fpu_in.inputs'reverse_range loop
+                INSERT_L1: for j in fpu_in.inputs'reverse_range loop
                     if not fpu_in_dones(j) and fpu_in.inputs(j).command /= FPU_NOP and not v.rs(i).busy then
                         v.rs(i).busy := true;
                         v.rs(i).executing := false;
@@ -358,6 +364,7 @@ begin
                         v.rs(i).lhs := fpu_in.inputs(j).lhs;
                         v.rs(i).rhs := fpu_in.inputs(j).rhs;
                         fpu_in_dones(j) := true;
+                        exit INSERT_L1;
                     end if;
                 end loop;
 

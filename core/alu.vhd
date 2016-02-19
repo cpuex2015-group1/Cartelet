@@ -18,15 +18,13 @@ architecture struct of alu is
         rtag : std_logic_vector(TAG_WIDTH downto 0);
         lhs : reg_file_entry_type;
         rhs : reg_file_entry_type;
-        data : std_logic_vector(31 downto 0);
     end record;
     constant rs_entry_init : rs_entry_type := (
         busy => false,
         command => (others => '0'),
         rtag => (others => '0'),
         lhs => reg_file_entry_init,
-        rhs => reg_file_entry_init,
-        data => (others => '0'));
+        rhs => reg_file_entry_init);
     type rs_type is array(2 ** ALU_RS_ADDR_LENGTH - 1 downto 0) of rs_entry_type;
     type reg_type is record
         rs : rs_type;
@@ -39,18 +37,114 @@ architecture struct of alu is
 begin
     comb : process(r, alu_in)
         variable v : reg_type := reg_init;
-        variable tmp : std_logic_vector(31 downto 0);
         type alu_in_dones_type is array(1 downto 0) of boolean; -- hardcode
         variable alu_in_dones : alu_in_dones_type := (others => false);
         variable output_count : integer := 0;
+        variable tmp : std_logic_vector(31 downto 0) := (others => '0');
+        function my_sra(a : std_logic_vector; count : std_logic_vector) return std_logic_vector is
+        variable res : std_logic_vector(31 downto 0);
+        begin
+            res := a;
+            if count(0) = '1' then
+                if a(31) = '0' then
+                    res := '0' & res(31 downto 1);
+                else
+                    res := '1' & res(31 downto 1);
+                end if;
+            end if;
+            if count(1) = '1' then
+                if a(31) = '0' then
+                    res := "00" & res(31 downto 2);
+                else
+                    res := "11" & res(31 downto 2);
+                end if;
+            end if;
+            if count(2) = '1' then
+                if a(31) = '0' then
+                    res := x"0" & res(31 downto 4);
+                else
+                    res := x"f" & res(31 downto 4);
+                end if;
+            end if;
+            if count(3) = '1' then
+                if a(31) = '0' then
+                    res := x"00" & res(31 downto 8);
+                else
+                    res := x"ff" & res(31 downto 8);
+                end if;
+            end if;
+            if count(4) = '1' then
+                if a(31) = '0' then
+                    res := x"0000" & res(31 downto 16);
+                else
+                    res := x"ffff" & res(31 downto 16);
+                end if;
+            end if;
+            if unsigned(count(31 downto 5)) /= 0 then
+                if a(31) = '0' then
+                    res := (others => '0');
+                else
+                    res := (others => '1');
+                end if;
+            end if;
+            return res;
+        end function my_sra;
+        function my_srl(a : std_logic_vector; count : std_logic_vector) return std_logic_vector is
+            variable res : std_logic_vector(31 downto 0);
+        begin
+            res := a;
+            if count(0) = '1' then
+                res := '0' & res(31 downto 1);
+            end if;
+            if count(1) = '1' then
+                res := "00" & res(31 downto 2);
+            end if;
+            if count(2) = '1' then
+                res := x"0" & res(31 downto 4);
+            end if;
+            if count(3) = '1' then
+                res := x"00" & res(31 downto 8);
+            end if;
+            if count(4) = '1' then
+                res := x"0000" & res(31 downto 16);
+            end if;
+            if unsigned(count(31 downto 5)) /= 0 then
+                res := (others => '0');
+            end if;
+            return res;
+        end function my_srl;
+        function my_sll(a : std_logic_vector; count : std_logic_vector) return std_logic_vector is
+            variable res : std_logic_vector(31 downto 0);
+        begin
+            res := a;
+            if count(0) = '1' then
+                res := res(30 downto 0) & '0';
+            end if;
+            if count(1) = '1' then
+                res := res(29 downto 0) & "00";
+            end if;
+            if count(2) = '1' then
+                res := res(27 downto 0) & "0000";
+            end if;
+            if count(3) = '1' then
+                res := res(23 downto 0) & x"00";
+            end if;
+            if count(4) = '1' then
+                res := res(15 downto 0) & x"0000";
+            end if;
+            if unsigned(count(31 downto 5)) /= 0 then
+                res := (others => '0');
+            end if;
+            return res;
+        end function my_sll;
     begin
         v := r;
 
-        tmp := (others => '0');
         alu_in_dones := (others => false);
         v.alu_out.free_count := (others => '0');
         v.alu_out.outputs := (others => alu_out_body_entry_init);
         output_count := 0;
+        tmp := (others => '0');
 
         if alu_in.reset_rs then
             -- reset rs
@@ -70,7 +164,7 @@ begin
                 end loop;
 
                 -- insert into RS
-                for j in alu_in.inputs'reverse_range loop
+                INSERT_L1: for j in alu_in.inputs'reverse_range loop
                     if not alu_in_dones(j) and alu_in.inputs(j).command /= ALU_NOP and not v.rs(i).busy then
                         v.rs(i).busy := true;
                         v.rs(i).command := alu_in.inputs(j).command;
@@ -78,6 +172,7 @@ begin
                         v.rs(i).lhs := alu_in.inputs(j).lhs;
                         v.rs(i).rhs := alu_in.inputs(j).rhs;
                         alu_in_dones(j) := true;
+                        exit INSERT_L1;
                     end if;
                 end loop;
 
@@ -98,20 +193,24 @@ begin
                 -- execute
                 case v.rs(i).command is
                     when ALU_ADD =>
-                        v.rs(i).data := std_logic_vector(unsigned(v.rs(i).lhs.value) + unsigned(v.rs(i).rhs.value));
+                        tmp := std_logic_vector(unsigned(v.rs(i).lhs.value) + unsigned(v.rs(i).rhs.value));
                     when ALU_SUB =>
-                        v.rs(i).data := std_logic_vector(unsigned(v.rs(i).lhs.value) - unsigned(v.rs(i).rhs.value));
+                        tmp := std_logic_vector(unsigned(v.rs(i).lhs.value) - unsigned(v.rs(i).rhs.value));
                     when ALU_SLL =>
                         if r.rs(i).rhs.value(31) = '0' then -- positive
-                            v.rs(i).data := std_logic_vector(shift_left(unsigned(v.rs(i).lhs.value), to_integer(signed(v.rs(i).rhs.value))));
+--                            tmp := std_logic_vector(shift_left(unsigned(v.rs(i).lhs.value), to_integer(signed(v.rs(i).rhs.value))));
+                            tmp := my_sll(v.rs(i).lhs.value, v.rs(i).rhs.value);
                         else -- negative
-                            v.rs(i).data := std_logic_vector(shift_right(unsigned(v.rs(i).lhs.value), to_integer(-signed(v.rs(i).rhs.value))));
+--                            tmp := std_logic_vector(shift_right(unsigned(v.rs(i).lhs.value), to_integer(-signed(v.rs(i).rhs.value))));
+                            tmp := my_srl(v.rs(i).lhs.value, std_logic_vector(-signed(v.rs(i).rhs.value)));
                         end if;
                     when ALU_SRA =>
                         if r.rs(i).rhs.value(31) = '0' then -- positive
-                            v.rs(i).data := std_logic_vector(shift_right(signed(v.rs(i).lhs.value), to_integer(signed(v.rs(i).rhs.value))));
+--                            tmp := std_logic_vector(shift_right(signed(v.rs(i).lhs.value), to_integer(signed(v.rs(i).rhs.value))));
+                            tmp := my_sra(v.rs(i).lhs.value, v.rs(i).rhs.value);
                         else -- negative
-                            v.rs(i).data := std_logic_vector(shift_left(unsigned(v.rs(i).lhs.value), to_integer(-signed(v.rs(i).rhs.value))));
+--                            tmp := std_logic_vector(shift_left(unsigned(v.rs(i).lhs.value), to_integer(-signed(v.rs(i).rhs.value))));
+                            tmp := my_sll(v.rs(i).lhs.value, std_logic_vector(-signed(v.rs(i).rhs.value)));
                         end if;
                     when others =>
                 end case;
@@ -126,7 +225,7 @@ begin
                     v.alu_out.outputs(output_count).valid := true;
                     v.alu_out.outputs(output_count).to_rob.valid := true;
                     v.alu_out.outputs(output_count).to_rob.rtag := v.rs(i).rtag;
-                    v.alu_out.outputs(output_count).to_rob.value := v.rs(i).data;
+                    v.alu_out.outputs(output_count).to_rob.value := tmp(31 downto 0);
                     output_count := output_count + 1;
                 end if;
             end loop;

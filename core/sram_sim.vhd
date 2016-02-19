@@ -66,7 +66,11 @@ begin
             if xwab (2 downto 1) = "01" then
                 if zab(2)(0) = '1' or zab(2)(0) = '0' then
                     mem(to_integer(unsigned(zab(2)(SIM_SRAM_ADDR_LENGTH - 1 downto 0)))) <= ZD;
-                    zdbo := ZD;
+                    if zab(2) = zab(1) then
+                        zdbo := ZD;
+                    else
+                        zdbo := mem(to_integer(unsigned(zab(1)(SIM_SRAM_ADDR_LENGTH - 1 downto 0))));
+                    end if;
                 end if;
             elsif xwab (2 downto 1) = "11" then
                 if zab(1)(0) = '1' or zab(1)(0) = '0' then

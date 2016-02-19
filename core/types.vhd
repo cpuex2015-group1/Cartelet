@@ -13,15 +13,16 @@ package types is
 --    constant ALU_RS_WIDTH : integer := ALU_RS_ADDR_LENGTH - 1;
     constant SDU_RS_ADDR_LENGTH : integer := 1;
 --    constant SDU_RS_WIDTH : integer := SDU_RS_ADDR_LENGTH - 1;
-    constant FPU_RS_ADDR_LENGTH : integer := 1;
+    constant FPU_RS_ADDR_LENGTH : integer := 2;
 --    constant FPU_RS_WIDTH : integer := FPU_RS_ADDR_LENGTH - 1;
-    constant MCU_RS_WIDTH : integer := 1;
+    constant MCU_RS_ADDR_LENGTH : integer := 1;
+--    constant MCU_RS_WIDTH : integer := MCU_RS_ADDR_LENGTH - 1;
+    constant MCU_STORE_BUFF_ADDR_LENGTH : integer := 1;
     constant CONCURRENCY : integer := 2;
     constant TAG_LENGTH : integer := 3;
     constant TAG_WIDTH : integer := TAG_LENGTH - 1;
     constant IMM_LENGTH : integer := 16;
     constant IMM_WIDTH : integer := 15;
-    constant MCU_STORE_BUFF_WIDTH : integer := 1;
     constant CACHE_WIDTH : integer := 2;
     constant CACHE_TAG_LENGTH : integer := 10;
 
@@ -357,7 +358,7 @@ package types is
 
     type exec_store_entry_type is record
         valid : boolean;
-        buff_index : std_logic_vector(MCU_STORE_BUFF_WIDTH downto 0);
+        buff_index : std_logic_vector(MCU_STORE_BUFF_ADDR_LENGTH - 1 downto 0);
     end record;
     constant exec_store_entry_init : exec_store_entry_type := (
         valid => false,
@@ -398,7 +399,7 @@ package types is
         exec_store => (others => exec_store_entry_init));
 
     type mcu_out_type is record
-        free_count : std_logic_vector(MCU_RS_WIDTH downto 0);
+        free_count : std_logic_vector(MCU_RS_ADDR_LENGTH downto 0);
         outputs : alu_out_body_type;
         ZA : std_logic_vector(SRAM_ADDR_WIDTH downto 0);
         ZD : std_logic_vector(31 downto 0);
@@ -450,6 +451,10 @@ package types is
         command => (others => '0'),
         imm_zero_ext => false,
         use_imm => false);
+
+
+
+    type booleans2 is array(1 downto 0) of boolean;
 
 
     constant CMD_PLOAD : std_logic_vector(7 downto 0) := x"01";
