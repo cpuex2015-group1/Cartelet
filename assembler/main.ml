@@ -462,8 +462,53 @@ let rec trim_comment asms =
             let asm = trim_spaces_forward (trim_spaces_backward asm) in
             (line, asm) :: trim_comment (List.tl asms)
 
+let get_tokens_from_str = Str.split (Str.regexp "[ \t()]+")
+
+exception Pohe of string * int
+
+let get_dest tokens =
+  let op = List.hd tokens in
+  if List.mem op ["sw"; "fsw"] then List.nth tokens 2
+  else if (List.mem op ["beq"; "bneq"; "blt"; "ble";
+			"fbeq"; "fbneq"; "fblt"; "fble";
+			"jr"; "jal"; "nop"; "halt"]) ||
+	    (List.length tokens <= 1) then assert false
+  else try List.nth tokens 1 with Failure("nth") -> raise (Pohe(List.hd tokens, List.length tokens))
+
+let rec optimize_addi' tokens text =
+  match text with
+  | [] -> []
+  | (line, asm) :: asms when  String.length asm > 4 && String.sub asm 0 4 = "addi" ->
+     let tokens' = get_tokens_from_str asm in
+     if List.nth tokens 1 = List.nth tokens' 1 then
+       (if (List.nth tokens' 2 = "%r0") &&
+	     (List.nth tokens 3 = List.nth tokens' 3) then
+	  optimize_addi' tokens asms
+	else text)
+     else (line, asm) :: (optimize_addi' tokens asms)
+  | (line, asm) :: asms ->
+     let tokens' = get_tokens_from_str asm in
+     if (List.mem (List.hd tokens')
+		  ["jr"; "jal"; "beq"; "bneq"; "blt"; "ble";
+		   "fbeq"; "fbneq"; "fblt"; "fble"; "nop"; "halt"]) ||
+	  (List.length tokens' <= 1) ||
+	    (get_dest tokens' = List.nth tokens 1) then text
+     else (line, asm) :: optimize_addi' tokens asms
+
+let rec optimize_addi text = (* addiによる無駄な即値再代入を消す *)
+  match text with
+  | [] -> []
+  | (line, asm) :: asms when String.length asm > 4 && String.sub asm 0 4 = "addi" ->
+     let tokens = get_tokens_from_str asm in
+     if List.nth tokens 2 = "%r0" then
+       (let asms' = optimize_addi' tokens asms in
+	(line, asm) :: (optimize_addi asms'))
+     else (line, asm) :: (optimize_addi asms)
+  | (line, asm) :: asms ->
+     (line, asm) :: (optimize_addi asms)
+
 let optimize text = (* TODO *)
-    text
+  optimize_addi text
 
 let is_tag_def str =
     Str.string_match (Str.regexp "^.*:$") str 0
@@ -577,10 +622,14 @@ let rec output_format_coe prog' =
   | l :: prog' -> Printf.printf "%s,\n" l; output_format_coe prog'
 
 (* for debug *)
+let rec output_text = function
+  | [] -> ()
+  | (line, asm) :: lst -> (Printf.eprintf "(%d, %s)\n" line asm;
+			   output_text lst)
 let rec output_text' = function
   | [] -> ()
   | (num, line, asm) :: lst -> (Printf.eprintf "(%d, %s)\n" num asm;
-                output_text' lst)
+				output_text' lst)
 
 let main' asms =
     let asms = trim_comment asms in
@@ -593,10 +642,11 @@ let main' asms =
     let text = remove_entry_point_mark text in
     let text = convert_pseudo_ops text in
     let text = optimize text in
+    (* output_text text; (* for debug *) *)
     (* ひとまず0xaaを送る箇所をコメントアウトした。後で直す *)
     let text = (*[(-1, "addi %r1 %r0 $0x00aa"); (-1, "send8 %r1")] @ *)[(-1, "beq %r0 %r0 " ^ entry_point)] @ text in
     let text' = attach_logical_line_num text in
-    output_text' text'; (* for debug *)
+    (* output_text' text'; (* for debug *) *)
     let tag_dict = TagDict.merge (fun key a b -> if a = None then b else a) data_tag_dict (create_tag_dict text') in
     let text' = strip_tag_def text' in
     let prog' = List.map (fun (lline, _, asm) -> asm_to_bin lline asm tag_dict) text' in
