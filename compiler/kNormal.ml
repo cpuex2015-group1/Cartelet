@@ -14,8 +14,8 @@ type t = (* K正規化後の式 (caml2html: knormal_t) *)
   | FSub of Id.t * Id.t * Lexing.position
   | FMul of Id.t * Id.t * Lexing.position
   | FDiv of Id.t * Id.t * Lexing.position
-  | IfEq of Id.t * Id.t * t * t  * Lexing.position(* 比較 + 分岐 (caml2html: knormal_branch) *)
-  | IfLE of Id.t * Id.t * t * t  * Lexing.position(* 比較 + 分岐 *)
+  | IfEq of Id.t * Id.t * t * t  * Lexing.position (* 比較 + 分岐 (caml2html: knormal_branch) *)
+  | IfLE of Id.t * Id.t * t * t  * Lexing.position (* 比較 + 分岐 *)
   | Let of (Id.t * Type.t) * t * t * Lexing.position
   | Var of Id.t * Lexing.position
   | LetRec of fundef * t * Lexing.position
